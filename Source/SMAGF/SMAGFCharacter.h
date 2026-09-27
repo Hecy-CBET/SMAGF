@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,41 +6,25 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class USMAGFWeaponComponent;
 
-/**
- *  A controllable top-down perspective character
- */
-UCLASS(abstract)
-class ASMAGFCharacter : public ACharacter
+UCLASS()
+class SMAGF_API ASMAGFCharacter : public ACharacter
 {
 	GENERATED_BODY()
-
-private:
-
-	/** Top down camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCameraComponent> TopDownCameraComponent;
-
-	/** Camera boom positioning the camera above the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USpringArmComponent> CameraBoom;
-
 public:
-
-	/** Constructor */
 	ASMAGFCharacter();
-
-	/** Initialization */
 	virtual void BeginPlay() override;
-
-	/** Update */
-	virtual void Tick(float DeltaSeconds) override;
-
-	/** Returns the camera component **/
+	void MoveInCameraPlane(const FVector2D& Intent);
+	void ApplyAimDirection(const FVector& Direction);
 	UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent.Get(); }
-
-	/** Returns the Camera Boom component **/
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom.Get(); }
-
+	USMAGFWeaponComponent* GetWeapon() const { return Weapon.Get(); }
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UCameraComponent> TopDownCameraComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USpringArmComponent> CameraBoom;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USMAGFWeaponComponent> Weapon;
 };
-

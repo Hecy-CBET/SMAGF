@@ -1,0 +1,11 @@
+"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/Module.RiderLogging.cpp"
+@"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/RiderLogging.Shared.rsp"
+/FI"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/Definitions.h"
+/Fo"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/Module.RiderLogging.cpp.obj"
+/experimental:log "D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/Module.RiderLogging.cpp.sarif"
+/sourceDependencies "D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RiderLogging/Module.RiderLogging.cpp.dep.json"
+/nologo
+/TP
+/GR
+/std:c++20
+/wd5054

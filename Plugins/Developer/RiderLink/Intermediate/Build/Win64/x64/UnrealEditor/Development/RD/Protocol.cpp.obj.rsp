@@ -1,0 +1,11 @@
+"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Source/RD/src/rd_framework_cpp/src/main/protocol/Protocol.cpp"
+@"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RD/RD.Shared.rsp"
+/FI"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RD/Definitions.h"
+/Fo"D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RD/Protocol.cpp.obj"
+/experimental:log "D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RD/Protocol.cpp.sarif"
+/sourceDependencies "D:/Games/UEProjects/_VibeCoding/SMAGF/Plugins/Developer/RiderLink/Intermediate/Build/Win64/x64/UnrealEditor/Development/RD/Protocol.cpp.dep.json"
+/nologo
+/TP
+/GR
+/std:c++20
+/wd5054

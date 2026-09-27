@@ -1,138 +1,218 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "SMAGFPlayerController.h"
-#include "GameFramework/Pawn.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "NiagaraSystem.h"
-#include "NiagaraFunctionLibrary.h"
+#include "SMAGF.h"
 #include "SMAGFCharacter.h"
-#include "Engine/World.h"
+#include "Combat/SMAGFWeaponComponent.h"
 #include "EnhancedInputComponent.h"
-#include "Navigation/PathFollowingComponent.h"
-#include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
-#include "SMAGF.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "InputModifiers.h"
 
 ASMAGFPlayerController::ASMAGFPlayerController()
 {
-	bIsTouch = false;
-	bMoveToMouseCursor = false;
-
-	// create the path following comp
-	PathFollowingComponent = CreateDefaultSubobject<UPathFollowingComponent>(TEXT("Path Following Component"));
-
-	// configure the controller
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
-	CachedDestination = FVector::ZeroVector;
-	FollowTime = 0.f;
+}
+
+void ASMAGFPlayerController::CreateInputObjects()
+{
+	if (BaselineMapping)
+	{
+		return;
+	}
+	BaselineMapping = NewObject<UInputMappingContext>(this, TEXT("IMC_SMAGFBaseline"), RF_Transient);
+	MoveAction = NewObject<UInputAction>(this, TEXT("IA_SMAGFMove"), RF_Transient);
+	MoveAction->ValueType = EInputActionValueType::Axis2D;
+	MoveAction->AccumulationBehavior = EInputActionAccumulationBehavior::Cumulative;
+	FireAction = NewObject<UInputAction>(this, TEXT("IA_SMAGFFire"), RF_Transient);
+	FireAction->ValueType = EInputActionValueType::Boolean;
+	BaselineMapping->MapKey(MoveAction, EKeys::W);
+	BaselineMapping->MapKey(MoveAction, EKeys::S).Modifiers.Add(NewObject<UInputModifierNegate>(BaselineMapping));
+	for (const FKey Key : { EKeys::D, EKeys::A })
+	{
+		FEnhancedActionKeyMapping& Mapping = BaselineMapping->MapKey(MoveAction, Key);
+		UInputModifierSwizzleAxis* Swizzle = NewObject<UInputModifierSwizzleAxis>(BaselineMapping);
+		Swizzle->Order = EInputAxisSwizzle::YXZ;
+		Mapping.Modifiers.Add(Swizzle);
+		if (Key == EKeys::A)
+		{
+			Mapping.Modifiers.Add(NewObject<UInputModifierNegate>(BaselineMapping));
+		}
+	}
+	BaselineMapping->MapKey(FireAction, EKeys::LeftMouseButton);
+}
+
+void ASMAGFPlayerController::AddOwnedMapping()
+{
+	if (!IsLocalController() || !BaselineMapping)
+	{
+		return;
+	}
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		if (MappingSubsystem.Get() != Subsystem)
+		{
+			RemoveOwnedMapping();
+		}
+		if (!Subsystem->HasMappingContext(BaselineMapping))
+		{
+			Subsystem->AddMappingContext(BaselineMapping, 0);
+		}
+		MappingSubsystem = Subsystem;
+	}
+}
+
+void ASMAGFPlayerController::RemoveOwnedMapping()
+{
+	if (MappingSubsystem.IsValid() && BaselineMapping)
+	{
+		MappingSubsystem->RemoveMappingContext(BaselineMapping);
+	}
+	MappingSubsystem.Reset();
 }
 
 void ASMAGFPlayerController::SetupInputComponent()
 {
-	// set up gameplay key bindings
 	Super::SetupInputComponent();
-
-	// Only set up input on local player controllers
-	if (IsLocalPlayerController())
+	if (!IsLocalController())
 	{
-		// Add Input Mapping Context
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-
-		// Set up action bindings
-		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
-		{
-			// Setup mouse input events
-			EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Started, this, &ASMAGFPlayerController::OnInputStarted);
-			EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Triggered, this, &ASMAGFPlayerController::OnSetDestinationTriggered);
-			EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Completed, this, &ASMAGFPlayerController::OnSetDestinationReleased);
-			EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Canceled, this, &ASMAGFPlayerController::OnSetDestinationReleased);
-
-			// Setup touch input events
-			EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Started, this, &ASMAGFPlayerController::OnInputStarted);
-			EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ASMAGFPlayerController::OnTouchTriggered);
-			EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ASMAGFPlayerController::OnTouchReleased);
-			EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ASMAGFPlayerController::OnTouchReleased);
-		}
-		else
-		{
-			UE_LOG(LogSMAGF, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-		}
+		return;
 	}
-}
-
-void ASMAGFPlayerController::OnInputStarted()
-{
-	StopMovement();
-
-	// Update the move destination to wherever the cursor is pointing at
-	UpdateCachedDestination();
-}
-
-void ASMAGFPlayerController::OnSetDestinationTriggered()
-{
-	// We flag that the input is being pressed
-	FollowTime += GetWorld()->GetDeltaSeconds();
-	
-	// Update the move destination to wherever the cursor is pointing at
-	UpdateCachedDestination();
-	
-	// Move towards mouse pointer or touch
-	APawn* ControlledPawn = GetPawn();
-	if (ControlledPawn != nullptr)
+	CreateInputObjects();
+	AddOwnedMapping();
+	FInputModeGameAndUI Mode;
+	Mode.SetHideCursorDuringCapture(false);
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(Mode);
+	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		FVector WorldDirection = (CachedDestination - ControlledPawn->GetActorLocation()).GetSafeNormal();
-		ControlledPawn->AddMovementInput(WorldDirection, 1.0, false);
-	}
-}
-
-void ASMAGFPlayerController::OnSetDestinationReleased()
-{
-	// If it was a short press
-	if (FollowTime <= ShortPressThreshold)
-	{
-		// We move there and spawn some particles
-		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedDestination);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, CachedDestination, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
-	}
-
-	FollowTime = 0.f;
-}
-
-// Triggered every frame when the input is held down
-void ASMAGFPlayerController::OnTouchTriggered()
-{
-	bIsTouch = true;
-	OnSetDestinationTriggered();
-}
-
-void ASMAGFPlayerController::OnTouchReleased()
-{
-	bIsTouch = false;
-	OnSetDestinationReleased();
-}
-
-void ASMAGFPlayerController::UpdateCachedDestination()
-{
-	// We look for the location in the world where the player has pressed the input
-	FHitResult Hit;
-	bool bHitSuccessful = false;
-	if (bIsTouch)
-	{
-		bHitSuccessful = GetHitResultUnderFinger(ETouchIndex::Touch1, ECollisionChannel::ECC_Visibility, true, Hit);
+		Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASMAGFPlayerController::OnMove);
+		Input->BindAction(MoveAction, ETriggerEvent::Completed, this, &ASMAGFPlayerController::OnMoveReleased);
+		Input->BindAction(MoveAction, ETriggerEvent::Canceled, this, &ASMAGFPlayerController::OnMoveReleased);
+		Input->BindAction(FireAction, ETriggerEvent::Started, this, &ASMAGFPlayerController::OnFireStarted);
+		Input->BindAction(FireAction, ETriggerEvent::Completed, this, &ASMAGFPlayerController::OnFireReleased);
+		Input->BindAction(FireAction, ETriggerEvent::Canceled, this, &ASMAGFPlayerController::OnFireReleased);
 	}
 	else
 	{
-		bHitSuccessful = GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, true, Hit);
+		UE_LOG(LogSMAGF, Error, TEXT("SMAGF requires an EnhancedInputComponent."));
 	}
+}
 
-	// If we hit a surface, cache the location
-	if (bHitSuccessful)
+void ASMAGFPlayerController::OnPossess(APawn* InPawn)
+{
+	CancelHeldInput();
+	Super::OnPossess(InPawn);
+	LastAimDirection = InPawn->GetActorForwardVector().GetSafeNormal2D();
+	CreateInputObjects();
+	AddOwnedMapping();
+	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(InPawn))
 	{
-		CachedDestination = Hit.Location;
+		ControlledCharacter->GetWeapon()->AddTickPrerequisiteActor(this);
 	}
+}
+
+void ASMAGFPlayerController::OnUnPossess()
+{
+	CancelHeldInput();
+	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+	{
+		ControlledCharacter->GetWeapon()->RemoveTickPrerequisiteActor(this);
+	}
+	RemoveOwnedMapping();
+	Super::OnUnPossess();
+}
+
+void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelHeldInput();
+	RemoveOwnedMapping();
+	Super::EndPlay(EndPlayReason);
+}
+
+void ASMAGFPlayerController::FlushPressedKeys()
+{
+	Super::FlushPressedKeys();
+	CancelHeldInput();
+}
+
+void ASMAGFPlayerController::CancelHeldInput()
+{
+	MoveIntent = FVector2D::ZeroVector;
+	OnFireReleased();
+	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+	{
+		ControlledCharacter->ConsumeMovementInputVector();
+		ControlledCharacter->GetCharacterMovement()->StopMovementImmediately();
+	}
+}
+
+void ASMAGFPlayerController::OnMove(const FInputActionValue& Value)
+{
+	MoveIntent = Value.Get<FVector2D>();
+}
+
+void ASMAGFPlayerController::OnMoveReleased()
+{
+	MoveIntent = FVector2D::ZeroVector;
+}
+
+void ASMAGFPlayerController::OnFireStarted()
+{
+	UpdateAim();
+	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+	{
+		ControlledCharacter->GetWeapon()->StartFire();
+	}
+}
+
+void ASMAGFPlayerController::OnFireReleased()
+{
+	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+	{
+		ControlledCharacter->GetWeapon()->StopFire();
+	}
+}
+
+void ASMAGFPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+	if (IsLocalController())
+	{
+		UpdateAim();
+		if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+		{
+			ControlledCharacter->MoveInCameraPlane(MoveIntent);
+		}
+	}
+}
+
+void ASMAGFPlayerController::UpdateAim()
+{
+	ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn());
+	if (!ControlledCharacter)
+	{
+		return;
+	}
+	FVector RayOrigin, RayDirection;
+	const FVector Muzzle = ControlledCharacter->GetWeapon()->GetMuzzleLocation();
+	if (DeprojectMousePositionToWorld(RayOrigin, RayDirection) && !RayOrigin.ContainsNaN()
+		&& !RayDirection.ContainsNaN() && !Muzzle.ContainsNaN() && FMath::Abs(RayDirection.Z) > KINDA_SMALL_NUMBER)
+	{
+		const double Distance = (Muzzle.Z - RayOrigin.Z) / RayDirection.Z;
+		if (FMath::IsFinite(Distance) && Distance > 0.0)
+		{
+			const FVector AimPoint = RayOrigin + RayDirection * Distance;
+			// Aim from the yaw pivot: the forward muzzle offset then lies on the same ray.
+			const FVector Direction = (AimPoint - ControlledCharacter->GetActorLocation()).GetSafeNormal2D();
+			if (!AimPoint.ContainsNaN() && !Direction.ContainsNaN() && !Direction.IsNearlyZero())
+			{
+				LastAimDirection = Direction;
+			}
+		}
+	}
+	ControlledCharacter->ApplyAimDirection(LastAimDirection);
 }
