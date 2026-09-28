@@ -3,6 +3,7 @@
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Combat/SMAGFWeaponComponent.h"
+#include "Feedback/SMAGFReactionComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -35,6 +36,7 @@ ASMAGFCharacter::ASMAGFCharacter()
 	TopDownCameraComponent->bUsePawnControlRotation = false;
 	TopDownCameraComponent->FieldOfView = 55.f;
 	Weapon = CreateDefaultSubobject<USMAGFWeaponComponent>(TEXT("Weapon"));
+	Reaction = CreateDefaultSubobject<USMAGFReactionComponent>(TEXT("Reaction"));
 
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> Manny(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
 	static ConstructorHelpers::FClassFinder<UAnimInstance> Animation(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"));
@@ -47,6 +49,7 @@ ASMAGFCharacter::ASMAGFCharacter()
 void ASMAGFCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	Reaction->SetVisualComponent(GetMesh());
 	if (!GetMesh()->GetSkeletalMeshAsset() || !GetMesh()->GetAnimClass())
 	{
 		UE_LOG(LogSMAGF, Error, TEXT("SMAGF baseline requires SKM_Manny_Simple and ABP_Unarmed; a required visual reference is missing."));

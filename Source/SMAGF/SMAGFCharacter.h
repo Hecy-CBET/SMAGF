@@ -7,6 +7,7 @@
 class UCameraComponent;
 class USpringArmComponent;
 class USMAGFWeaponComponent;
+class USMAGFReactionComponent;
 
 UCLASS()
 class SMAGF_API ASMAGFCharacter : public ACharacter
@@ -21,6 +22,8 @@ public:
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom.Get(); }
 	USMAGFWeaponComponent* GetWeapon() const { return Weapon.Get(); }
 private:
+	UPROPERTY(VisibleAnywhere, Category="Components")
+	TObjectPtr<USMAGFReactionComponent> Reaction;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UCameraComponent> TopDownCameraComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))

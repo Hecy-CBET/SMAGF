@@ -30,6 +30,8 @@ bool FSMAGFFeelingSettings::operator==(const FSMAGFFeelingSettings& Other) const
 		&& MovementAcceleration == Other.MovementAcceleration
 		&& MovementDeceleration == Other.MovementDeceleration
 		&& RecoilDistance == Other.RecoilDistance
+		&& ImpactResponseDistance == Other.ImpactResponseDistance
+		&& ImpactResponseDuration == Other.ImpactResponseDuration
 		&& RecoilRotation == Other.RecoilRotation
 		&& RecoilDuration == Other.RecoilDuration
 		&& RecoilRecoveryDuration == Other.RecoilRecoveryDuration
@@ -207,6 +209,8 @@ void FSMAGFShowcaseSettings::Validate()
 	Feeling.MovementAcceleration = ValidFloat(Feeling.MovementAcceleration, 0.f, 10000.f, Defaults.Feeling.MovementAcceleration);
 	Feeling.MovementDeceleration = ValidFloat(Feeling.MovementDeceleration, 0.f, 10000.f, Defaults.Feeling.MovementDeceleration);
 	Feeling.RecoilDistance = ValidFloat(Feeling.RecoilDistance, 0.f, 100.f, Defaults.Feeling.RecoilDistance);
+	Feeling.ImpactResponseDistance = ValidFloat(Feeling.ImpactResponseDistance, 0.f, 100.f, Defaults.Feeling.ImpactResponseDistance);
+	Feeling.ImpactResponseDuration = ValidFloat(Feeling.ImpactResponseDuration, 0.f, 1.f, Defaults.Feeling.ImpactResponseDuration);
 	Feeling.RecoilRotation = ValidFloat(Feeling.RecoilRotation, 0.f, 45.f, Defaults.Feeling.RecoilRotation);
 	Feeling.RecoilDuration = ValidFloat(Feeling.RecoilDuration, 0.f, 5.f, Defaults.Feeling.RecoilDuration);
 	Feeling.RecoilRecoveryDuration = ValidFloat(Feeling.RecoilRecoveryDuration, 0.f, 5.f, Defaults.Feeling.RecoilRecoveryDuration);

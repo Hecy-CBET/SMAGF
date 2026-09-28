@@ -175,6 +175,12 @@ struct SMAGF_API FSMAGFFeelingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0", ClampMax="5", UIMin="0", UIMax="5"))
 	float RecoilRecoveryDuration = 0.15f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0", ClampMax="100", UIMin="0", UIMax="100"))
+	float ImpactResponseDistance = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	float ImpactResponseDuration = 0.06f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
 	float HitStopDuration = 0.04f;
 

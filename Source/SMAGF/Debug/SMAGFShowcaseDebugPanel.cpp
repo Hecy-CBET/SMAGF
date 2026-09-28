@@ -197,6 +197,8 @@ void SSMAGFShowcaseDebugPanel::BuildControls(const TSharedRef<SVerticalBox>& Row
 	AddNumber<float>(Rows, TEXT("Player Knockback Recovery"), 0.0f, 5.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.PlayerKnockbackRecovery; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.PlayerKnockbackRecovery = V; });
 	AddNumber<float>(Rows, TEXT("Hit Reaction Duration"), 0.0f, 5.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.HitReactionDuration; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.HitReactionDuration = V; });
 	AddNumber<float>(Rows, TEXT("Hit Reaction Intensity"), 0.0f, 2.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.HitReactionIntensity; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.HitReactionIntensity = V; });
+	AddNumber<float>(Rows, TEXT("Impact Response Distance"), 0.0f, 100.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ImpactResponseDistance; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ImpactResponseDistance = V; });
+	AddNumber<float>(Rows, TEXT("Impact Response Duration"), 0.0f, 1.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ImpactResponseDuration; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ImpactResponseDuration = V; });
 	AddGroup(Rows, TEXT("Move It or Lose It"), ESMAGFShowcaseGroup::Animation);
 	AddBool(Rows, TEXT("Group Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Animation.bEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Animation.bEnabled = V; });
 	AddBool(Rows, TEXT("Fire Anticipation Animation Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Animation.bFireAnticipationAnimationEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Animation.bFireAnticipationAnimationEnabled = V; });
@@ -330,4 +332,3 @@ Rows->AddSlot().AutoHeight().Padding(0, 6)[SNew(SComboButton)
 	AddNumber<float>(Rows, TEXT("Major Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.MajorMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.MajorMultiplier = V; });
 	AddNumber<float>(Rows, TEXT("Critical Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.CriticalMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.CriticalMultiplier = V; });
 }
-

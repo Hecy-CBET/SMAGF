@@ -1,0 +1,64 @@
+#pragma once
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "Showcase/SMAGFShowcaseTypes.h"
+#include "SMAGFReactionComponent.generated.h"
+
+class USceneComponent;
+class USMAGFShowcaseSubsystem;
+class UCharacterMovementComponent;
+
+/** One composer for local presentation, plus a bounded swept planar impulse. */
+UCLASS(ClassGroup=(SMAGF), meta=(BlueprintSpawnableComponent))
+class SMAGF_API USMAGFReactionComponent : public UActorComponent
+{
+	GENERATED_BODY()
+public:
+	USMAGFReactionComponent();
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
+	void SetVisualComponent(USceneComponent* Component);
+	void BeginAnticipation(float Duration);
+	void CancelAnticipation();
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Feedback")
+	void OnShot(const FVector& Direction);
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Feedback")
+	void OnDamagingHit(const FVector& Direction);
+	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
+	FTransform GetBaseVisualTransform() const { return BaseVisual; }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
+	bool IsKnockbackActive() const { return KnockRemaining > 0.f; }
+private:
+	struct FPulse
+	{
+		FVector Offset = FVector::ZeroVector;
+		FRotator Rotation = FRotator::ZeroRotator;
+		float Elapsed = 0.f;
+		float Attack = 0.f;
+		float Recovery = 0.f;
+		float Weight() const;
+		void Advance(float Delta);
+	};
+	TWeakObjectPtr<USceneComponent> Visual;
+	TWeakObjectPtr<UCharacterMovementComponent> CharacterMovement;
+	TWeakObjectPtr<USMAGFShowcaseSubsystem> Showcase;
+	FDelegateHandle SettingsHandle;
+	FTransform BaseVisual = FTransform::Identity;
+	FSMAGFFeelingSettings Tuning;
+	bool bMasterEnabled = false;
+	float Intensity = 1.f;
+	float BaselineAcceleration = 0.f;
+	float BaselineDeceleration = 0.f;
+	FPulse Recoil, Impact, HitReaction;
+	float PreparationTime = 0.f;
+	float PreparationElapsed = 0.f;
+	FVector KnockVelocity = FVector::ZeroVector;
+	float KnockRemaining = 0.f;
+	float KnockDuration = 0.f;
+	bool Enabled(bool Selected) const { return bMasterEnabled && Tuning.bEnabled && Selected; }
+	void SettingsChanged();
+	void ComposeVisual();
+	FVector ToVisualParent(const FVector& Direction) const;
+	void StartKnockback(const FVector& Direction, float Strength, float Duration);
+};

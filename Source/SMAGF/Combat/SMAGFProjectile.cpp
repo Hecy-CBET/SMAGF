@@ -1,4 +1,9 @@
 #include "Combat/SMAGFProjectile.h"
+#include "Combat/SMAGFHealthComponent.h"
+#include "Feedback/SMAGFFeedbackSubsystem.h"
+#include "Feedback/SMAGFReactionComponent.h"
+#include "Engine/World.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -66,8 +71,20 @@ void ASMAGFProjectile::OnImpact(UPrimitiveComponent* HitComponent, AActor* Other
 	Movement->StopMovementImmediately();
 	if (IsValid(OtherActor))
 	{
-		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, ShotDirection, Hit,
+		// Retain health through synchronous death/destruction callbacks; no concrete target cast.
+		TStrongObjectPtr<USMAGFHealthComponent> Health(OtherActor->FindComponentByClass<USMAGFHealthComponent>());
+		const float Before = Health.IsValid() ? Health->CurrentHealth : 0.f;
+		const float ReportedDamage = UGameplayStatics::ApplyPointDamage(OtherActor, Damage, ShotDirection, Hit,
 			GetInstigatorController(), this, UDamageType::StaticClass());
+		const float AppliedDamage = Health.IsValid() ? Before - Health->CurrentHealth : ReportedDamage;
+		const bool bKilled = Health.IsValid() && Before > 0.f && Health->CurrentHealth <= 0.f;
+		USMAGFReactionComponent* Reaction = IsValid(OtherActor) ? OtherActor->FindComponentByClass<USMAGFReactionComponent>() : nullptr;
+		// A wall without a health/feedback receiver is not a damaging hit.
+		if (AppliedDamage > 0.f && (Health.IsValid() || Reaction))
+		{
+			if (Reaction) { Reaction->OnDamagingHit(ShotDirection); }
+			if (USMAGFFeedbackSubsystem* Feedback = GetWorld()->GetSubsystem<USMAGFFeedbackSubsystem>()) { Feedback->NotifyDamagingHit(bKilled); }
+		}
 	}
 	Destroy();
 }

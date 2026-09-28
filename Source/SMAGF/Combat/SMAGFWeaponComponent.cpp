@@ -3,6 +3,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "SMAGF.h"
+#include "Showcase/SMAGFShowcaseSubsystem.h"
+#include "Feedback/SMAGFReactionComponent.h"
 
 USMAGFWeaponComponent::USMAGFWeaponComponent()
 {
@@ -15,6 +17,24 @@ FVector USMAGFWeaponComponent::GetMuzzleLocation() const
 	return GetOwner()->GetActorLocation() + GetOwner()->GetActorRotation().RotateVector(MuzzleOffset);
 }
 
+void USMAGFWeaponComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	Showcase = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
+	if (Showcase.IsValid()) { SettingsHandle = Showcase->OnSettingsChangedNative.AddUObject(this, &USMAGFWeaponComponent::SettingsChanged); }
+}
+
+void USMAGFWeaponComponent::CancelAnticipation()
+{
+	bAnticipating = false;
+	if (USMAGFReactionComponent* Reaction = GetOwner()->FindComponentByClass<USMAGFReactionComponent>()) { Reaction->CancelAnticipation(); }
+}
+
+void USMAGFWeaponComponent::SettingsChanged()
+{
+	if (!Showcase.IsValid() || !Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::FireAnticipation)) { CancelAnticipation(); }
+}
+
 void USMAGFWeaponComponent::StartFire()
 {
 	bHeld = true;
@@ -24,11 +44,13 @@ void USMAGFWeaponComponent::StartFire()
 void USMAGFWeaponComponent::StopFire()
 {
 	bHeld = false;
+	CancelAnticipation();
 }
 
 void USMAGFWeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	StopFire();
+	if (Showcase.IsValid()) { Showcase->OnSettingsChangedNative.Remove(SettingsHandle); }
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -53,6 +75,29 @@ void USMAGFWeaponComponent::TryFire()
 	{
 		return;
 	}
+	if (bAnticipating)
+	{
+		if (Now < AnticipationEnds) { return; }
+		CancelAnticipation();
+	}
+	else if (Showcase.IsValid() && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::FireAnticipation))
+	{
+		const float Delay = Showcase->GetSettings().Feeling.FireAnticipationTime;
+		if (Delay > 0.f)
+		{
+			bAnticipating = true;
+			AnticipationEnds = Now + Delay;
+			if (USMAGFReactionComponent* Reaction = GetOwner()->FindComponentByClass<USMAGFReactionComponent>()) { Reaction->BeginAnticipation(Delay); }
+			return;
+		}
+	}
+	FireShot();
+}
+
+void USMAGFWeaponComponent::FireShot()
+{
+	UWorld* World = GetWorld();
+	const double Now = World->GetTimeSeconds();
 	// Schedule from now: missed intervals are discarded, never replayed as a burst.
 	NextShotTime = Now + (FMath::IsFinite(FireInterval) ? FMath::Max(0.01f, FireInterval) : 0.25f);
 	LastShotFrame = GFrameCounter;
@@ -83,5 +128,9 @@ void USMAGFWeaponComponent::TryFire()
 	{
 		Projectile->InitializeShot(GetOwner()->GetActorForwardVector(), ProjectileSpeed, ProjectileDamage);
 		Projectile->FinishSpawning(Transform);
+		if (USMAGFReactionComponent* Reaction = GetOwner()->FindComponentByClass<USMAGFReactionComponent>())
+		{
+			Reaction->OnShot(GetOwner()->GetActorForwardVector());
+		}
 	}
 }

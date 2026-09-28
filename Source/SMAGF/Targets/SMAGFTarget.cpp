@@ -1,5 +1,6 @@
 #include "Targets/SMAGFTarget.h"
 #include "Combat/SMAGFHealthComponent.h"
+#include "Feedback/SMAGFReactionComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -20,7 +21,14 @@ ASMAGFTarget::ASMAGFTarget()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Mesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	Visual->SetStaticMesh(Mesh.Object);
 	Health = CreateDefaultSubobject<USMAGFHealthComponent>(TEXT("Health"));
+	Reaction = CreateDefaultSubobject<USMAGFReactionComponent>(TEXT("Reaction"));
 	Health->OnDeath.AddDynamic(this, &ASMAGFTarget::OnDied);
+}
+
+void ASMAGFTarget::BeginPlay()
+{
+	Super::BeginPlay();
+	Reaction->SetVisualComponent(Visual);
 }
 
 float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
