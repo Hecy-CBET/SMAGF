@@ -4,6 +4,12 @@
 #include "SMAGFShowcaseTypes.generated.h"
 
 UENUM(BlueprintType)
+enum class ESMAGFShowcasePreset : uint8
+{
+	Baseline, Feeling, Animation, Audiovisual, SmokeAndMirrors, Focus, FullShowcase, Custom
+};
+
+UENUM(BlueprintType)
 enum class ESMAGFEasingType : uint8
 {
 	Linear,

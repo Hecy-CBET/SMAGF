@@ -7,6 +7,8 @@
 
 class USMAGFShowcaseSubsystem;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSMAGFShowcaseSettingsChanged, USMAGFShowcaseSubsystem*, Subsystem);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSMAGFShowcasePresetChanged, ESMAGFShowcasePreset, Preset);
+DECLARE_MULTICAST_DELEGATE(FSMAGFShowcaseNativeChanged);
 
 /** The only mutable showcase state for a Game/PIE world. No effect consumers yet. */
 UCLASS()
@@ -14,6 +16,28 @@ class SMAGF_API USMAGFShowcaseSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
+	bool SetShowcasePreset(ESMAGFShowcasePreset Preset);
+	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
+	ESMAGFShowcasePreset GetShowcasePreset() const { return ActivePreset; }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
+	ESMAGFShowcasePreset GetLastNamedShowcasePreset() const { return LastNamedPreset; }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
+	bool HasCustomShowcaseSnapshot() const { return bHasCustomSnapshot; }
+	/** Custom returns its saved snapshot, or current settings if none exists. */
+	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
+	FSMAGFShowcaseSettings ResolvePreset(ESMAGFShowcasePreset Preset) const;
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
+	bool NextShowcasePreset();
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
+	bool PreviousShowcasePreset();
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
+	bool ResetCurrentGroupToDefaults(ESMAGFShowcaseGroup Group);
+	UPROPERTY(BlueprintAssignable, Category="SMAGF|Showcase")
+	FSMAGFShowcasePresetChanged OnShowcasePresetChanged;
+	// Slate uses weak shared-pointer bindings; the Blueprint delegates remain available.
+	FSMAGFShowcaseNativeChanged OnSettingsChangedNative;
+	FSMAGFShowcaseNativeChanged OnPresetChangedNative;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -57,6 +81,16 @@ public:
 protected:
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 private:
+	bool CommitState(const FSMAGFShowcaseSettings& Candidate, ESMAGFShowcasePreset Preset, bool bSaveCustom);
+	UPROPERTY(Transient)
+	ESMAGFShowcasePreset ActivePreset = ESMAGFShowcasePreset::Baseline;
+	UPROPERTY(Transient)
+	ESMAGFShowcasePreset LastNamedPreset = ESMAGFShowcasePreset::Baseline;
+	UPROPERTY(Transient)
+	FSMAGFShowcaseSettings CustomSnapshot;
+	UPROPERTY(Transient)
+	bool bHasCustomSnapshot = false;
+	bool bCommitting = false;
 	UPROPERTY(Transient)
 	FSMAGFShowcaseSettings Settings;
 	UPROPERTY(Transient)

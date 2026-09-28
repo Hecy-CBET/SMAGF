@@ -11,12 +11,16 @@ void USMAGFShowcaseSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	StartupDefaults = GetDefault<USMAGFShowcaseDeveloperSettings>()->Defaults;
 	StartupDefaults.Validate();
-	Settings = StartupDefaults;
+	// Phase 3 deliberately starts in Baseline without changing authored defaults.
+	Settings = ResolvePreset(ESMAGFShowcasePreset::Baseline);
 }
 
 void USMAGFShowcaseSubsystem::Deinitialize()
 {
 	OnSettingsChanged.Clear();
+	OnShowcasePresetChanged.Clear();
+	OnSettingsChangedNative.Clear();
+	OnPresetChangedNative.Clear();
 	Super::Deinitialize();
 }
 
@@ -28,13 +32,12 @@ bool USMAGFShowcaseSubsystem::ApplySettings(const FSMAGFShowcaseSettings& NewSet
 	{
 		return false;
 	}
-	Settings = MoveTemp(Validated);
-	OnSettingsChanged.Broadcast(this);
-	return true;
+	return CommitState(Validated, ESMAGFShowcasePreset::Custom, true);
 }
 
 bool USMAGFShowcaseSubsystem::ResetToDefaults()
 {
+	// Like all manual edits, a real reset enters Custom; a no-op preserves the label.
 	return ApplySettings(StartupDefaults);
 }
 
@@ -295,3 +298,78 @@ float USMAGFShowcaseSubsystem::GetEventImportanceMultiplier(ESMAGFEventImportanc
 	return Settings.JuiceResponsibly.ResolveMultiplier(Importance);
 }
 
+
+bool USMAGFShowcaseSubsystem::CommitState(const FSMAGFShowcaseSettings& Candidate, ESMAGFShowcasePreset Preset, bool bSaveCustom)
+{
+	if (bCommitting) { return false; }
+	FSMAGFShowcaseSettings Validated = Candidate;
+	Validated.Validate();
+	const bool bSettingsChanged = !(Settings == Validated);
+	const bool bPresetChanged = ActivePreset != Preset;
+	if (!bSettingsChanged && !bPresetChanged) { return false; }
+	TGuardValue<bool> Guard(bCommitting, true);
+	Settings = MoveTemp(Validated);
+	ActivePreset = Preset;
+	if (Preset != ESMAGFShowcasePreset::Custom) { LastNamedPreset = Preset; }
+	if (bSaveCustom) { CustomSnapshot = Settings; bHasCustomSnapshot = true; }
+	// All authoritative state is committed before either notification is emitted.
+	if (bSettingsChanged) { OnSettingsChanged.Broadcast(this); OnSettingsChangedNative.Broadcast(); }
+	if (bPresetChanged) { OnShowcasePresetChanged.Broadcast(Preset); OnPresetChangedNative.Broadcast(); }
+	return true;
+}
+
+FSMAGFShowcaseSettings USMAGFShowcaseSubsystem::ResolvePreset(ESMAGFShowcasePreset Preset) const
+{
+	if (Preset == ESMAGFShowcasePreset::Custom) { return bHasCustomSnapshot ? CustomSnapshot : Settings; }
+	if (static_cast<uint8>(Preset) > static_cast<uint8>(ESMAGFShowcasePreset::FullShowcase)) { return Settings; }
+	FSMAGFShowcaseSettings Result = StartupDefaults;
+	Result.Master.bShowcaseEnabled = Preset != ESMAGFShowcasePreset::Baseline;
+	Result.Feeling.bEnabled = Preset >= ESMAGFShowcasePreset::Feeling;
+	Result.Animation.bEnabled = Preset >= ESMAGFShowcasePreset::Animation;
+	Result.Audiovisual.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
+	Result.Camera.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
+	Result.Permanence.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
+	Result.SmokeAndMirrors.bEnabled = Preset >= ESMAGFShowcasePreset::SmokeAndMirrors;
+	Result.Focus.bEnabled = Preset >= ESMAGFShowcasePreset::Focus;
+	Result.JuiceResponsibly.bEnabled = Preset == ESMAGFShowcasePreset::FullShowcase;
+	return Result;
+}
+
+bool USMAGFShowcaseSubsystem::SetShowcasePreset(ESMAGFShowcasePreset Preset)
+{
+	if (static_cast<uint8>(Preset) > static_cast<uint8>(ESMAGFShowcasePreset::Custom)
+		|| (Preset == ESMAGFShowcasePreset::Custom && !bHasCustomSnapshot)) { return false; }
+	return CommitState(ResolvePreset(Preset), Preset, false);
+}
+
+bool USMAGFShowcaseSubsystem::NextShowcasePreset()
+{
+	const ESMAGFShowcasePreset Reference = ActivePreset == ESMAGFShowcasePreset::Custom ? LastNamedPreset : ActivePreset;
+	if (Reference == ESMAGFShowcasePreset::FullShowcase) { return false; }
+	return SetShowcasePreset(static_cast<ESMAGFShowcasePreset>(static_cast<uint8>(Reference) + 1));
+}
+
+bool USMAGFShowcaseSubsystem::PreviousShowcasePreset()
+{
+	const ESMAGFShowcasePreset Reference = ActivePreset == ESMAGFShowcasePreset::Custom ? LastNamedPreset : ActivePreset;
+	if (Reference == ESMAGFShowcasePreset::Baseline) { return false; }
+	return SetShowcasePreset(static_cast<ESMAGFShowcasePreset>(static_cast<uint8>(Reference) - 1));
+}
+
+bool USMAGFShowcaseSubsystem::ResetCurrentGroupToDefaults(ESMAGFShowcaseGroup Group)
+{
+	FSMAGFShowcaseSettings Copy = Settings;
+	switch (Group)
+	{
+	case ESMAGFShowcaseGroup::Feeling: Copy.Feeling = StartupDefaults.Feeling; break;
+	case ESMAGFShowcaseGroup::Animation: Copy.Animation = StartupDefaults.Animation; break;
+	case ESMAGFShowcaseGroup::Audiovisual: Copy.Audiovisual = StartupDefaults.Audiovisual; break;
+	case ESMAGFShowcaseGroup::Camera: Copy.Camera = StartupDefaults.Camera; break;
+	case ESMAGFShowcaseGroup::Permanence: Copy.Permanence = StartupDefaults.Permanence; break;
+	case ESMAGFShowcaseGroup::SmokeAndMirrors: Copy.SmokeAndMirrors = StartupDefaults.SmokeAndMirrors; break;
+	case ESMAGFShowcaseGroup::Focus: Copy.Focus = StartupDefaults.Focus; break;
+	case ESMAGFShowcaseGroup::JuiceResponsibly: Copy.JuiceResponsibly = StartupDefaults.JuiceResponsibly; break;
+	default: return false;
+	}
+	return ApplySettings(Copy);
+}

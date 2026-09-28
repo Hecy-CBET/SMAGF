@@ -10,6 +10,13 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "Debug/SMAGFShowcaseDebugPanel.h"
+#include "Showcase/SMAGFShowcaseSubsystem.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
+#include "Framework/Application/SlateApplication.h"
+#include "UnrealClient.h"
+#include "InputKeyEventArgs.h"
 
 ASMAGFPlayerController::ASMAGFPlayerController()
 {
@@ -87,6 +94,10 @@ void ASMAGFPlayerController::SetupInputComponent()
 	Mode.SetHideCursorDuringCapture(false);
 	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(Mode);
+	InputComponent->BindKey(EKeys::PageUp, IE_Pressed, this, &ASMAGFPlayerController::PreviousShowcaseLayer);
+	InputComponent->BindKey(EKeys::PageDown, IE_Pressed, this, &ASMAGFPlayerController::NextShowcaseLayer);
+	InputComponent->BindKey(EKeys::Home, IE_Pressed, this, &ASMAGFPlayerController::BaselineShowcaseLayer);
+	InputComponent->BindKey(EKeys::End, IE_Pressed, this, &ASMAGFPlayerController::FullShowcaseLayer);
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASMAGFPlayerController::OnMove);
@@ -117,6 +128,7 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 
 void ASMAGFPlayerController::OnUnPossess()
 {
+	RemoveShowcasePanel(true);
 	CancelHeldInput();
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
 	{
@@ -128,6 +140,7 @@ void ASMAGFPlayerController::OnUnPossess()
 
 void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	RemoveShowcasePanel(false);
 	CancelHeldInput();
 	RemoveOwnedMapping();
 	Super::EndPlay(EndPlayReason);
@@ -137,6 +150,9 @@ void ASMAGFPlayerController::FlushPressedKeys()
 {
 	Super::FlushPressedKeys();
 	CancelHeldInput();
+	bRequireFireRelease = true;
+	bRequireMoveRelease = true;
+	// Viewport-to-Slate focus transfers also flush keys. They must not close UI.
 }
 
 void ASMAGFPlayerController::CancelHeldInput()
@@ -152,6 +168,7 @@ void ASMAGFPlayerController::CancelHeldInput()
 
 void ASMAGFPlayerController::OnMove(const FInputActionValue& Value)
 {
+	if (IsShowcasePanelOpen() || bRequireMoveRelease) { return; }
 	MoveIntent = Value.Get<FVector2D>();
 }
 
@@ -162,6 +179,7 @@ void ASMAGFPlayerController::OnMoveReleased()
 
 void ASMAGFPlayerController::OnFireStarted()
 {
+	if (IsShowcasePanelOpen() || bRequireFireRelease) { return; }
 	UpdateAim();
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
 	{
@@ -180,6 +198,21 @@ void ASMAGFPlayerController::OnFireReleased()
 void ASMAGFPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (IsLocalController() && GetWorld() && GetWorld()->GetGameViewport())
+	{
+		if (FViewport* Viewport = GetWorld()->GetGameViewport()->Viewport)
+		{
+			// Use physical viewport state: PlayerInput may have just been flushed.
+			// Slate also tracks presses captured by UI controls outside SViewport.
+			const bool bMouseHeld = FSlateApplication::IsInitialized()
+				? FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton)
+				: Viewport->KeyState(EKeys::LeftMouseButton);
+			if (!bMouseHeld) { bRequireFireRelease = false; }
+			if (!Viewport->KeyState(EKeys::W) && !Viewport->KeyState(EKeys::A)
+				&& !Viewport->KeyState(EKeys::S) && !Viewport->KeyState(EKeys::D)) { bRequireMoveRelease = false; }
+		}
+	}
+	if (IsShowcasePanelOpen()) { return; }
 	if (IsLocalController())
 	{
 		UpdateAim();
@@ -216,3 +249,94 @@ void ASMAGFPlayerController::UpdateAim()
 	}
 	ControlledCharacter->ApplyAimDirection(LastAimDirection);
 }
+
+void ASMAGFPlayerController::ToggleShowcasePanel()
+{
+	if (IsShowcasePanelOpen()) { CloseShowcasePanel(); return; }
+	if (!IsLocalController() || !GetWorld() || !FSlateApplication::IsInitialized()) { return; }
+	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
+	USMAGFShowcaseSubsystem* Subsystem = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
+	if (!Viewport || !Subsystem) { return; }
+	CancelHeldInput();
+	bRequireFireRelease = true;
+	bRequireMoveRelease = true;
+	ShowcasePanel = SNew(SSMAGFShowcaseDebugPanel).Controller(this).Subsystem(Subsystem);
+	Viewport->AddViewportWidgetContent(ShowcasePanel.ToSharedRef(), 100);
+	bShowMouseCursor = true;
+	FInputModeGameAndUI Mode;
+	Mode.SetWidgetToFocus(ShowcasePanel);
+	Mode.SetHideCursorDuringCapture(false);
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(Mode);
+	FSlateApplication::Get().SetKeyboardFocus(ShowcasePanel);
+}
+
+void ASMAGFPlayerController::CloseShowcasePanel()
+{
+	RemoveShowcasePanel(true);
+}
+
+void ASMAGFPlayerController::RemoveShowcasePanel(bool bRestoreInput)
+{
+	if (!ShowcasePanel.IsValid()) { return; }
+	ShowcasePanel->Disconnect();
+	if (GetWorld() && GetWorld()->GetGameViewport())
+	{
+		GetWorld()->GetGameViewport()->RemoveViewportWidgetContent(ShowcasePanel.ToSharedRef());
+	}
+	ShowcasePanel.Reset();
+	CancelHeldInput();
+	bRequireFireRelease = true;
+	bRequireMoveRelease = true;
+	if (bRestoreInput && IsLocalController())
+	{
+		// Restore the approved Phase 1 GameAndUI mode with its visible aim cursor.
+		bShowMouseCursor = true;
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(Mode);
+		if (FSlateApplication::IsInitialized()) { FSlateApplication::Get().SetAllUserFocusToGameViewport(); }
+	}
+}
+
+bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
+{
+	USMAGFShowcaseSubsystem* Subsystem = GetWorld() ? GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>() : nullptr;
+	if (!Subsystem) { return false; }
+	if (Key == EKeys::PageUp) { Subsystem->PreviousShowcasePreset(); }
+	else if (Key == EKeys::PageDown) { Subsystem->NextShowcasePreset(); }
+	else if (Key == EKeys::Home) { Subsystem->SetShowcasePreset(ESMAGFShowcasePreset::Baseline); }
+	else if (Key == EKeys::End) { Subsystem->SetShowcasePreset(ESMAGFShowcasePreset::FullShowcase); }
+	else { return false; }
+	return true;
+}
+
+bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
+{
+	if (IsLocalController() && EventArgs.Key == EKeys::F
+		&& (EventArgs.Event == IE_Pressed || EventArgs.Event == IE_Repeat))
+	{
+		const bool bControlDown = FSlateApplication::IsInitialized()
+			? FSlateApplication::Get().GetModifierKeys().IsControlDown()
+			: IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
+		if (HandleShowcaseToggleKey(EventArgs.Key, bControlDown, EventArgs.Event == IE_Repeat))
+		{
+			return true;
+		}
+	}
+	return Super::InputKey(EventArgs);
+}
+
+bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat)
+{
+	if (Key != EKeys::F || !bControlDown) { return false; }
+	// Both routes consume Ctrl+F. Native pressed/repeat edges need no persistent latch.
+	if (!bIsRepeat) { ToggleShowcasePanel(); }
+	return true;
+}
+
+void ASMAGFPlayerController::PreviousShowcaseLayer() { HandleShowcaseKey(EKeys::PageUp); }
+void ASMAGFPlayerController::NextShowcaseLayer() { HandleShowcaseKey(EKeys::PageDown); }
+void ASMAGFPlayerController::BaselineShowcaseLayer() { HandleShowcaseKey(EKeys::Home); }
+void ASMAGFPlayerController::FullShowcaseLayer() { HandleShowcaseKey(EKeys::End); }
