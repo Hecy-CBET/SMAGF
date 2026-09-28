@@ -14,6 +14,7 @@ public class SMAGF : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"DeveloperSettings",
 			"AIModule",
 			"NavigationSystem",
 			"StateTreeModule",
