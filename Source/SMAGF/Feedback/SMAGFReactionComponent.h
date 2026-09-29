@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Showcase/SMAGFShowcaseTypes.h"
+#include "Feedback/SMAGFMotion.h"
 #include "SMAGFReactionComponent.generated.h"
 
 class USceneComponent;
@@ -29,7 +30,21 @@ public:
 	FTransform GetBaseVisualTransform() const { return BaseVisual; }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
 	bool IsKnockbackActive() const { return KnockRemaining > 0.f; }
+	void BeginDeathPresentation(const FVector& IncomingDirection);
+	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
+	bool IsAnimationActive() const;
 private:
+	enum EMotion { Preparation, WeaponMotion, FireMotion, HitMotion, DeathMotion, Deformation, Settle, Wobble, MotionCount };
+	SMAGFMotion::FChannel Motion[MotionCount];
+	FSMAGFAnimationSettings AnimationTuning;
+	bool bDeathPresentation = false;
+	FVector DeathAxis = FVector::RightVector;
+	float DeathAngle = 0.f;
+	bool AnimationEnabled(bool Selected) const { return bMasterEnabled && AnimationTuning.bEnabled && Selected; }
+	void StartMotion(EMotion Channel, const FVector& Offset, const FRotator& Rotation, float Strength = 1.f);
+	void StartSecondaryMotion(bool bImpact, const FVector& Direction);
+	void ClearDisabledMotion();
+	void AddAnimation(FVector& Offset, FRotator& Rotation, FVector& Scale, FQuat& AxisRotation) const;
 	struct FPulse
 	{
 		FVector Offset = FVector::ZeroVector;

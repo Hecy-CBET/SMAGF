@@ -104,6 +104,8 @@ enum class ESMAGFShowcaseFeature : uint8
 	ContextualPostProcess,
 	BackgroundDeemphasis,
 	EventImportanceScaling,
+	ProjectileReadability,
+	ProjectileAnimation,
 	Count UMETA(Hidden)
 };
 
@@ -208,6 +210,15 @@ struct SMAGF_API FSMAGFFeelingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0", ClampMax="2", UIMin="0", UIMax="2"))
 	float HitReactionIntensity = 1.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling")
+	bool bProjectileReadabilityEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0.5", ClampMax="3.0", UIMin="0.5", UIMax="3.0"))
+	float ProjectileVisualScale = 1.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Feeling", meta=(ClampMin="0.0", ClampMax="5.0", UIMin="0.0", UIMax="5.0"))
+	float ProjectileGlowFadeDuration = 2.0f;
+
 	bool operator==(const FSMAGFFeelingSettings& Other) const;
 };
 
@@ -249,7 +260,7 @@ struct SMAGF_API FSMAGFAnimationSettings
 	float SquashAmount = 0.15f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0", ClampMax="2", UIMin="0", UIMax="2"))
-	float StretchAmount = 0.15f;
+	float StretchAmount = 0.075f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0", ClampMax="2", UIMin="0", UIMax="2"))
 	float OvershootAmount = 0.1f;
@@ -268,6 +279,21 @@ struct SMAGF_API FSMAGFAnimationSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation")
 	ESMAGFEasingType Easing = ESMAGFEasingType::EaseOut;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation")
+	bool bProjectileAnimationEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="1.0", ClampMax="4.0", UIMin="1.0", UIMax="4.0"))
+	float ProjectileFlightStretch = 1.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="1.0", ClampMax="3.0", UIMin="1.0", UIMax="3.0"))
+	float ProjectileFlightGrowth = 1.20f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0.1", ClampMax="1.0", UIMin="0.1", UIMax="1.0"))
+	float ProjectileImpactSquash = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0.0", ClampMax="0.5", UIMin="0.0", UIMax="0.5"))
+	float ProjectileImpactAnimationDuration = 0.06f;
 
 	bool operator==(const FSMAGFAnimationSettings& Other) const;
 };

@@ -2,11 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Showcase/SMAGFShowcaseTypes.h"
 #include "SMAGFProjectile.generated.h"
 
 class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
+class USMAGFShowcaseSubsystem;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
 
 UCLASS()
 class SMAGF_API ASMAGFProjectile : public AActor
@@ -15,6 +19,12 @@ class SMAGF_API ASMAGFProjectile : public AActor
 public:
 	ASMAGFProjectile();
 	void InitializeShot(const FVector& Direction, float Speed, float InDamage);
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	UFUNCTION(BlueprintPure, Category="SMAGF|Projectile")
+	bool IsImpactPresentationActive() const { return bConsumed && ImpactRemaining > 0.f; }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Projectile")
+	float GetVisualAge() const { return VisualAge; }
 protected:
 	virtual void BeginPlay() override;
 	UPROPERTY(VisibleAnywhere, Category="Components")
@@ -24,6 +34,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<UProjectileMovementComponent> Movement;
 private:
+	TWeakObjectPtr<USMAGFShowcaseSubsystem> Showcase;
+	FDelegateHandle SettingsHandle;
+	FSMAGFFeelingSettings Feeling;
+	FSMAGFAnimationSettings Animation;
+	bool bReadability = false, bAnimation = false;
+	float MasterIntensity = 1.f;
+	FTransform BaseVisual = FTransform::Identity;
+	UPROPERTY() TObjectPtr<UMaterialInterface> BaseMaterial;
+	UPROPERTY() TObjectPtr<UMaterialInterface> GlowMaterial;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> GlowInstance;
+	float VisualAge = 0.f;
+	float ImpactRemaining = 0.f;
+	FVector FlightDirection = FVector::ForwardVector;
+	FVector ImpactScale = FVector::OneVector;
+	FQuat ImpactRotation = FQuat::Identity;
+	void SettingsChanged();
+	void UpdateVisual(bool bCaptureFlight = false);
 	UFUNCTION()
 	void OnImpact(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComponent,
 		FVector NormalImpulse, const FHitResult& Hit);

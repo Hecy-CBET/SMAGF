@@ -199,6 +199,9 @@ void SSMAGFShowcaseDebugPanel::BuildControls(const TSharedRef<SVerticalBox>& Row
 	AddNumber<float>(Rows, TEXT("Hit Reaction Intensity"), 0.0f, 2.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.HitReactionIntensity; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.HitReactionIntensity = V; });
 	AddNumber<float>(Rows, TEXT("Impact Response Distance"), 0.0f, 100.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ImpactResponseDistance; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ImpactResponseDistance = V; });
 	AddNumber<float>(Rows, TEXT("Impact Response Duration"), 0.0f, 1.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ImpactResponseDuration; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ImpactResponseDuration = V; });
+	AddBool(Rows, TEXT("Projectile Readability Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Feeling.bProjectileReadabilityEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Feeling.bProjectileReadabilityEnabled = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Visual Scale"), 0.5f, 3.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ProjectileVisualScale; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ProjectileVisualScale = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Glow Fade Duration"), 0.0f, 5.0f, [](const FSMAGFShowcaseSettings& S) { return S.Feeling.ProjectileGlowFadeDuration; }, [](FSMAGFShowcaseSettings& S, float V) { S.Feeling.ProjectileGlowFadeDuration = V; });
 	AddGroup(Rows, TEXT("Move It or Lose It"), ESMAGFShowcaseGroup::Animation);
 	AddBool(Rows, TEXT("Group Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Animation.bEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Animation.bEnabled = V; });
 	AddBool(Rows, TEXT("Fire Anticipation Animation Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Animation.bFireAnticipationAnimationEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Animation.bFireAnticipationAnimationEnabled = V; });
@@ -230,6 +233,11 @@ Rows->AddSlot().AutoHeight().Padding(0, 6)[SNew(SComboButton)
 			}
 			return Options;
 		})];
+	AddBool(Rows, TEXT("Projectile Animation Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Animation.bProjectileAnimationEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Animation.bProjectileAnimationEnabled = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Flight Stretch"), 1.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.Animation.ProjectileFlightStretch; }, [](FSMAGFShowcaseSettings& S, float V) { S.Animation.ProjectileFlightStretch = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Flight Growth"), 1.0f, 3.0f, [](const FSMAGFShowcaseSettings& S) { return S.Animation.ProjectileFlightGrowth; }, [](FSMAGFShowcaseSettings& S, float V) { S.Animation.ProjectileFlightGrowth = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Impact Squash"), 0.1f, 1.0f, [](const FSMAGFShowcaseSettings& S) { return S.Animation.ProjectileImpactSquash; }, [](FSMAGFShowcaseSettings& S, float V) { S.Animation.ProjectileImpactSquash = V; });
+	AddNumber<float>(Rows, TEXT("Projectile Impact Animation Duration"), 0.0f, 0.5f, [](const FSMAGFShowcaseSettings& S) { return S.Animation.ProjectileImpactAnimationDuration; }, [](FSMAGFShowcaseSettings& S, float V) { S.Animation.ProjectileImpactAnimationDuration = V; });
 	AddGroup(Rows, TEXT("Blood, Sweat & Pixelated Streaming"), ESMAGFShowcaseGroup::Audiovisual);
 	AddBool(Rows, TEXT("Group Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Audiovisual.bEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Audiovisual.bEnabled = V; });
 	AddBool(Rows, TEXT("Muzzle Flash Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.Audiovisual.bMuzzleFlashEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.Audiovisual.bMuzzleFlashEnabled = V; });

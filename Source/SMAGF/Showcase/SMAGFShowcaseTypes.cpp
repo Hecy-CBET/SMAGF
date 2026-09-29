@@ -43,7 +43,10 @@ bool FSMAGFFeelingSettings::operator==(const FSMAGFFeelingSettings& Other) const
 		&& PlayerKnockbackStrength == Other.PlayerKnockbackStrength
 		&& PlayerKnockbackRecovery == Other.PlayerKnockbackRecovery
 		&& HitReactionDuration == Other.HitReactionDuration
-		&& HitReactionIntensity == Other.HitReactionIntensity;
+		&& HitReactionIntensity == Other.HitReactionIntensity
+		&& bProjectileReadabilityEnabled == Other.bProjectileReadabilityEnabled
+		&& ProjectileVisualScale == Other.ProjectileVisualScale
+		&& ProjectileGlowFadeDuration == Other.ProjectileGlowFadeDuration;
 }
 
 bool FSMAGFAnimationSettings::operator==(const FSMAGFAnimationSettings& Other) const
@@ -65,7 +68,12 @@ bool FSMAGFAnimationSettings::operator==(const FSMAGFAnimationSettings& Other) c
 		&& WobbleFrequency == Other.WobbleFrequency
 		&& ReactionDuration == Other.ReactionDuration
 		&& RecoveryDuration == Other.RecoveryDuration
-		&& Easing == Other.Easing;
+		&& Easing == Other.Easing
+		&& bProjectileAnimationEnabled == Other.bProjectileAnimationEnabled
+		&& ProjectileFlightStretch == Other.ProjectileFlightStretch
+		&& ProjectileFlightGrowth == Other.ProjectileFlightGrowth
+		&& ProjectileImpactSquash == Other.ProjectileImpactSquash
+		&& ProjectileImpactAnimationDuration == Other.ProjectileImpactAnimationDuration;
 }
 
 bool FSMAGFAudiovisualSettings::operator==(const FSMAGFAudiovisualSettings& Other) const
@@ -204,6 +212,8 @@ void FSMAGFShowcaseSettings::Validate()
 {
 	const FSMAGFShowcaseSettings Defaults;
 	Master.MasterIntensity = ValidFloat(Master.MasterIntensity, 0.f, 2.f, Defaults.Master.MasterIntensity);
+	Feeling.ProjectileVisualScale = ValidFloat(Feeling.ProjectileVisualScale, 0.5f, 3.0f, Defaults.Feeling.ProjectileVisualScale);
+	Feeling.ProjectileGlowFadeDuration = ValidFloat(Feeling.ProjectileGlowFadeDuration, 0.0f, 5.0f, Defaults.Feeling.ProjectileGlowFadeDuration);
 	Feeling.FireAnticipationTime = ValidFloat(Feeling.FireAnticipationTime, 0.f, 2.f, Defaults.Feeling.FireAnticipationTime);
 	Feeling.AnticipationScale = ValidFloat(Feeling.AnticipationScale, 0.f, 2.f, Defaults.Feeling.AnticipationScale);
 	Feeling.MovementAcceleration = ValidFloat(Feeling.MovementAcceleration, 0.f, 10000.f, Defaults.Feeling.MovementAcceleration);
@@ -223,6 +233,10 @@ void FSMAGFShowcaseSettings::Validate()
 	Feeling.PlayerKnockbackRecovery = ValidFloat(Feeling.PlayerKnockbackRecovery, 0.f, 5.f, Defaults.Feeling.PlayerKnockbackRecovery);
 	Feeling.HitReactionDuration = ValidFloat(Feeling.HitReactionDuration, 0.f, 5.f, Defaults.Feeling.HitReactionDuration);
 	Feeling.HitReactionIntensity = ValidFloat(Feeling.HitReactionIntensity, 0.f, 2.f, Defaults.Feeling.HitReactionIntensity);
+	Animation.ProjectileFlightStretch = ValidFloat(Animation.ProjectileFlightStretch, 1.0f, 4.0f, Defaults.Animation.ProjectileFlightStretch);
+	Animation.ProjectileFlightGrowth = ValidFloat(Animation.ProjectileFlightGrowth, 1.0f, 3.0f, Defaults.Animation.ProjectileFlightGrowth);
+	Animation.ProjectileImpactSquash = ValidFloat(Animation.ProjectileImpactSquash, 0.1f, 1.0f, Defaults.Animation.ProjectileImpactSquash);
+	Animation.ProjectileImpactAnimationDuration = ValidFloat(Animation.ProjectileImpactAnimationDuration, 0.0f, 0.5f, Defaults.Animation.ProjectileImpactAnimationDuration);
 	Animation.AnimationIntensity = ValidFloat(Animation.AnimationIntensity, 0.f, 2.f, Defaults.Animation.AnimationIntensity);
 	Animation.SquashAmount = ValidFloat(Animation.SquashAmount, 0.f, 0.9f, Defaults.Animation.SquashAmount);
 	Animation.StretchAmount = ValidFloat(Animation.StretchAmount, 0.f, 2.f, Defaults.Animation.StretchAmount);

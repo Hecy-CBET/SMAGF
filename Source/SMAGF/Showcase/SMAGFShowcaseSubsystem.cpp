@@ -94,6 +94,8 @@ bool USMAGFShowcaseSubsystem::SetFeatureEnabled(ESMAGFShowcaseFeature Feature, b
 	FSMAGFShowcaseSettings Copy = Settings;
 	switch (Feature)
 	{
+	case ESMAGFShowcaseFeature::ProjectileAnimation: Copy.Animation.bProjectileAnimationEnabled = bEnabled; break;
+	case ESMAGFShowcaseFeature::ProjectileReadability: Copy.Feeling.bProjectileReadabilityEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::FireAnticipation: Copy.Feeling.bFireAnticipationEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::MovementAcceleration: Copy.Feeling.bMovementAccelerationEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::Recoil: Copy.Feeling.bRecoilEnabled = bEnabled; break;
@@ -158,6 +160,8 @@ bool USMAGFShowcaseSubsystem::IsFeatureSelectedEnabled(ESMAGFShowcaseFeature Fea
 {
 	switch (Feature)
 	{
+	case ESMAGFShowcaseFeature::ProjectileAnimation: return Settings.Animation.bProjectileAnimationEnabled;
+	case ESMAGFShowcaseFeature::ProjectileReadability: return Settings.Feeling.bProjectileReadabilityEnabled;
 	case ESMAGFShowcaseFeature::FireAnticipation: return Settings.Feeling.bFireAnticipationEnabled;
 	case ESMAGFShowcaseFeature::MovementAcceleration: return Settings.Feeling.bMovementAccelerationEnabled;
 	case ESMAGFShowcaseFeature::Recoil: return Settings.Feeling.bRecoilEnabled;
@@ -221,6 +225,8 @@ ESMAGFShowcaseGroup USMAGFShowcaseSubsystem::GetFeatureGroup(ESMAGFShowcaseFeatu
 {
 	switch (Feature)
 	{
+	case ESMAGFShowcaseFeature::ProjectileAnimation: return ESMAGFShowcaseGroup::Animation;
+	case ESMAGFShowcaseFeature::ProjectileReadability: return ESMAGFShowcaseGroup::Feeling;
 	case ESMAGFShowcaseFeature::FireAnticipation:
 	case ESMAGFShowcaseFeature::MovementAcceleration:
 	case ESMAGFShowcaseFeature::Recoil:

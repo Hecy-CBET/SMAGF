@@ -28,6 +28,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USMAGFHealthComponent> Health;
 private:
+	FVector AcceptedDamageDirection = FVector::ForwardVector;
 	UFUNCTION()
 	void OnDied(USMAGFHealthComponent* DeadHealth);
 };

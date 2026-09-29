@@ -1,6 +1,10 @@
 #include "Targets/SMAGFTarget.h"
 #include "Combat/SMAGFHealthComponent.h"
 #include "Feedback/SMAGFReactionComponent.h"
+#include "Feedback/SMAGFDeathVisual.h"
+#include "Showcase/SMAGFShowcaseSubsystem.h"
+#include "Engine/World.h"
+#include "Engine/DamageEvents.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -38,6 +42,10 @@ float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEve
 	{
 		return 0.f;
 	}
+	// Point damage carries the actual shot direction before synchronous OnDeath is broadcast.
+	AcceptedDamageDirection = DamageEvent.IsOfType(FPointDamageEvent::ClassID)
+		? SMAGFMotion::PlanarDirection(static_cast<const FPointDamageEvent&>(DamageEvent).ShotDirection)
+		: FVector::ForwardVector;
 	return Health->ApplyDamage(Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser));
 }
 
@@ -45,5 +53,16 @@ void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);
+	const USMAGFShowcaseSubsystem* Showcase = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
+	if (Showcase && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyDeathReaction))
+	{
+		const FTransform Transform = GetActorTransform();
+		if (ASMAGFDeathVisual* Copy = GetWorld()->SpawnActorDeferred<ASMAGFDeathVisual>(
+			ASMAGFDeathVisual::StaticClass(), Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
+		{
+			Copy->CopyVisual(Visual, Reaction->GetBaseVisualTransform(), AcceptedDamageDirection);
+			Copy->FinishSpawning(Transform);
+		}
+	}
 	Destroy();
 }
