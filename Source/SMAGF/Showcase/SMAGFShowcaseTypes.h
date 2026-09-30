@@ -424,10 +424,10 @@ struct SMAGF_API FSMAGFCameraSettings
 	float AimLookAheadInterpolation = 8.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="100", UIMin="0", UIMax="100"))
-	float ShakeTranslationAmplitude = 3.f;
+	float ShakeTranslationAmplitude = 1.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="30", UIMin="0", UIMax="30"))
-	float ShakeRotationAmplitude = 1.f;
+	float ShakeRotationAmplitude = 0.4f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="100", UIMin="0", UIMax="100"))
 	float ShakeFrequency = 20.f;
@@ -479,7 +479,10 @@ struct SMAGF_API FSMAGFPermanenceSettings
 	bool bKeepAftermathSmokeEnabled = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="300", UIMin="0", UIMax="300"))
-	float CorpseLifetime = 15.f;
+	float CorpseLifetime = 20.f; // Total retained lifetime, including dissolve.
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="30", UIMin="0", UIMax="30"))
+	float CorpseDissolveDuration = 5.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="300", UIMin="0", UIMax="300"))
 	float ShellLifetime = 10.f;

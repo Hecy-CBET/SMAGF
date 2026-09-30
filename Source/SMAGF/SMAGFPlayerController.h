@@ -21,6 +21,8 @@ public:
 	void CloseShowcasePanel();
 	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
 	bool IsShowcasePanelOpen() const { return ShowcasePanel.IsValid(); }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
+	FText GetShowcaseLayerLabel() const;
 	bool HandleShowcaseKey(FKey Key);
 	bool HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat);
 	ASMAGFPlayerController();
@@ -29,11 +31,13 @@ public:
 	virtual void FlushPressedKeys() override;
 	virtual bool ShouldFlushKeysWhenViewportFocusChanges() const override { return true; }
 protected:
+	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 private:
+	TSharedPtr<class SSMAGFShowcaseLayerIndicator> LayerIndicator;
 	void RemoveShowcasePanel(bool bRestoreInput);
 	void PreviousShowcaseLayer();
 	void NextShowcaseLayer();

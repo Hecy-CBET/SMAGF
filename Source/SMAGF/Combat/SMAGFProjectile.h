@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Showcase/SMAGFShowcaseTypes.h"
+#include "Containers/Ticker.h"
 #include "SMAGFProjectile.generated.h"
 
 class USphereComponent;
@@ -38,6 +39,15 @@ private:
 	FDelegateHandle SettingsHandle;
 	FSMAGFFeelingSettings Feeling;
 	FSMAGFAnimationSettings Animation;
+	FSMAGFAudiovisualSettings Audiovisual;
+	UPROPERTY() TObjectPtr<class UInstancedStaticMeshComponent> Trail;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> TrailMaterial;
+	struct FTrailPoint { FVector Position; float Age; };
+	TArray<FTrailPoint> TrailPoints;
+	bool bTrail = false, bAudiovisualScale = false;
+	float TrailClock = 0.f;
+	float AudiovisualScale() const;
+	void UpdateTrail(float Dt);
 	bool bReadability = false, bAnimation = false;
 	float MasterIntensity = 1.f;
 	FTransform BaseVisual = FTransform::Identity;
@@ -46,6 +56,9 @@ private:
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> GlowInstance;
 	float VisualAge = 0.f;
 	float ImpactRemaining = 0.f;
+	double ImpactDeadline = 0.;
+	FTSTicker::FDelegateHandle ImpactTicker;
+	FVector SurfacePoint = FVector::ZeroVector, SurfaceNormal = FVector::UpVector;
 	FVector FlightDirection = FVector::ForwardVector;
 	FVector ImpactScale = FVector::OneVector;
 	FQuat ImpactRotation = FQuat::Identity;

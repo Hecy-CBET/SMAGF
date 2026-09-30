@@ -29,7 +29,7 @@ private:
 		TFunction<bool(const FSMAGFShowcaseSettings&)> Read, TFunction<void(FSMAGFShowcaseSettings&, bool)> Write);
 	template<typename T> void AddNumber(const TSharedRef<SVerticalBox>& Rows, const TCHAR* Label, T Min, T Max,
 		TFunction<T(const FSMAGFShowcaseSettings&)> Read, TFunction<void(FSMAGFShowcaseSettings&, T)> Write);
-	void AddGroup(const TSharedRef<SVerticalBox>& Rows, const TCHAR* Label, ESMAGFShowcaseGroup Group);
+	TSharedRef<SVerticalBox> AddGroup(const TSharedRef<SVerticalBox>& Rows, const TCHAR* Label, ESMAGFShowcaseGroup Group);
 	FText PresetText() const;
 	TWeakObjectPtr<ASMAGFPlayerController> Controller;
 	TWeakObjectPtr<USMAGFShowcaseSubsystem> Subsystem;

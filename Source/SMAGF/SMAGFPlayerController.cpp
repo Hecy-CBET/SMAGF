@@ -1,4 +1,6 @@
 #include "SMAGFPlayerController.h"
+#include "Debug/SMAGFShowcaseLayerIndicator.h"
+#include "Camera/SMAGFPlayerCameraManager.h"
 #include "SMAGF.h"
 #include "SMAGFCharacter.h"
 #include "Combat/SMAGFWeaponComponent.h"
@@ -20,6 +22,7 @@
 
 ASMAGFPlayerController::ASMAGFPlayerController()
 {
+	PlayerCameraManagerClass = ASMAGFPlayerCameraManager::StaticClass();
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
 }
@@ -140,10 +143,30 @@ void ASMAGFPlayerController::OnUnPossess()
 
 void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (LayerIndicator.IsValid())
+	{
+		LayerIndicator->Disconnect();
+		if (GetWorld() && GetWorld()->GetGameViewport()) { GetWorld()->GetGameViewport()->RemoveViewportWidgetContent(LayerIndicator.ToSharedRef()); }
+		LayerIndicator.Reset();
+	}
 	RemoveShowcasePanel(false);
 	CancelHeldInput();
 	RemoveOwnedMapping();
 	Super::EndPlay(EndPlayReason);
+}
+
+void ASMAGFPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	if (IsLocalController() && GetWorld()->GetGameViewport() && FSlateApplication::IsInitialized())
+	{
+		LayerIndicator=SNew(SSMAGFShowcaseLayerIndicator).Subsystem(GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>());
+		GetWorld()->GetGameViewport()->AddViewportWidgetContent(LayerIndicator.ToSharedRef(),10);
+	}
+}
+FText ASMAGFPlayerController::GetShowcaseLayerLabel() const
+{
+	return LayerIndicator.IsValid() ? LayerIndicator->GetLabel() : FText::GetEmpty();
 }
 
 void ASMAGFPlayerController::FlushPressedKeys()
@@ -232,7 +255,11 @@ void ASMAGFPlayerController::UpdateAim()
 	}
 	FVector RayOrigin, RayDirection;
 	const FVector Muzzle = ControlledCharacter->GetWeapon()->GetMuzzleLocation();
-	if (DeprojectMousePositionToWorld(RayOrigin, RayDirection) && !RayOrigin.ContainsNaN()
+	float MouseX = 0.f, MouseY = 0.f;
+	const auto* Camera = Cast<ASMAGFPlayerCameraManager>(PlayerCameraManager);
+	const bool bRay = Camera && GetMousePosition(MouseX, MouseY)
+		&& Camera->DeprojectLogicalScreen(FVector2D(MouseX, MouseY), RayOrigin, RayDirection);
+	if (bRay && !RayOrigin.ContainsNaN()
 		&& !RayDirection.ContainsNaN() && !Muzzle.ContainsNaN() && FMath::Abs(RayDirection.Z) > KINDA_SMALL_NUMBER)
 	{
 		const double Distance = (Muzzle.Z - RayOrigin.Z) / RayDirection.Z;

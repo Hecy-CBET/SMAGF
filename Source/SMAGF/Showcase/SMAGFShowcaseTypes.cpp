@@ -141,6 +141,7 @@ bool FSMAGFPermanenceSettings::operator==(const FSMAGFPermanenceSettings& Other)
 		&& bKeepDebrisEnabled == Other.bKeepDebrisEnabled
 		&& bKeepAftermathSmokeEnabled == Other.bKeepAftermathSmokeEnabled
 		&& CorpseLifetime == Other.CorpseLifetime
+		&& CorpseDissolveDuration == Other.CorpseDissolveDuration
 		&& ShellLifetime == Other.ShellLifetime
 		&& DebrisLifetime == Other.DebrisLifetime
 		&& ImpactEvidenceLifetime == Other.ImpactEvidenceLifetime
@@ -274,6 +275,7 @@ void FSMAGFShowcaseSettings::Validate()
 	Camera.CameraKickRecovery = ValidFloat(Camera.CameraKickRecovery, 0.f, 5.f, Defaults.Camera.CameraKickRecovery);
 	Camera.KillCameraDuration = ValidFloat(Camera.KillCameraDuration, 0.f, 5.f, Defaults.Camera.KillCameraDuration);
 	Permanence.CorpseLifetime = ValidFloat(Permanence.CorpseLifetime, 0.f, 300.f, Defaults.Permanence.CorpseLifetime);
+	Permanence.CorpseDissolveDuration = FMath::Min(Permanence.CorpseLifetime, ValidFloat(Permanence.CorpseDissolveDuration, 0.f, 30.f, Defaults.Permanence.CorpseDissolveDuration));
 	Permanence.ShellLifetime = ValidFloat(Permanence.ShellLifetime, 0.f, 300.f, Defaults.Permanence.ShellLifetime);
 	Permanence.DebrisLifetime = ValidFloat(Permanence.DebrisLifetime, 0.f, 300.f, Defaults.Permanence.DebrisLifetime);
 	Permanence.ImpactEvidenceLifetime = ValidFloat(Permanence.ImpactEvidenceLifetime, 0.f, 300.f, Defaults.Permanence.ImpactEvidenceLifetime);

@@ -1,4 +1,5 @@
 #include "Feedback/SMAGFReactionComponent.h"
+#include "Feedback/SMAGFDeathVisual.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
@@ -184,8 +185,15 @@ void USMAGFReactionComponent::TickComponent(float DeltaTime, ELevelTick TickType
 {
 	Super::TickComponent(DeltaTime, TickType, TickFunction);
 	if (GetWorld()->IsPaused()) { return; }
-	for (SMAGFMotion::FChannel& Channel : Motion) { Channel.Advance(DeltaTime); }
-	if (bDeathPresentation && !IsAnimationActive()) { GetOwner()->Destroy(); return; }
+	const auto* Corpse = Cast<ASMAGFDeathVisual>(GetOwner());
+	for (int32 I = 0; I < MotionCount; ++I)
+	{
+		if (I == DeathMotion && bDeathPresentation && Corpse && Corpse->RetainCorpse())
+		{ Motion[I].Elapsed = FMath::Min(Motion[I].Elapsed + DeltaTime, Motion[I].Attack); }
+		else { Motion[I].Advance(DeltaTime); }
+	}
+	// The sole DeathVisual owns the shared body/disappearance retirement deadline.
+	if (bDeathPresentation && !IsAnimationActive() && !Corpse) { GetOwner()->Destroy(); return; }
 	Recoil.Advance(DeltaTime); Impact.Advance(DeltaTime); HitReaction.Advance(DeltaTime);
 	PreparationElapsed += DeltaTime;
 	if (KnockRemaining > 0.f && KnockDuration > 0.f)
@@ -248,7 +256,8 @@ void USMAGFReactionComponent::ClearDisabledMotion()
 	}
 	// Settings can change while paused: remove the dead presentation immediately,
 	// then let its next game tick retire the actor without destroying inside a delegate.
-	if (bDeathPresentation && !AnimationEnabled(AnimationTuning.bEnemyDeathReactionEnabled))
+	const auto* Corpse = Cast<ASMAGFDeathVisual>(GetOwner());
+	if (bDeathPresentation && !AnimationEnabled(AnimationTuning.bEnemyDeathReactionEnabled) && !(Corpse && Corpse->RetainCorpse()))
 	{
 		GetOwner()->SetActorHiddenInGame(true);
 	}
@@ -282,6 +291,9 @@ void USMAGFReactionComponent::AddAnimation(FVector& Offset, FRotator& Rotation, 
 		float Weight = State.Weight();
 		if (Index == DeathMotion)
 		{
+			const auto* Corpse = Cast<ASMAGFDeathVisual>(GetOwner());
+			if (bDeathPresentation && Corpse && Corpse->RetainCorpse())
+			{ Weight = State.Attack > 0.f ? SMAGFMotion::Ease(FMath::Clamp(State.Elapsed / State.Attack, 0.f, 1.f), State.Easing) : 1.f; }
 			AxisRotation = FQuat(DeathAxis, FMath::DegreesToRadians(FMath::Clamp(DeathAngle * Weight, -85.f, 85.f)));
 		}
 		if (Index == Settle && State.Active())

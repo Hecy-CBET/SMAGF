@@ -1,4 +1,6 @@
 #include "Targets/SMAGFTarget.h"
+#include "Presentation/SMAGFEventPresentationComponent.h"
+#include "Presentation/SMAGFPresentationVisual.h"
 #include "Combat/SMAGFHealthComponent.h"
 #include "Feedback/SMAGFReactionComponent.h"
 #include "Feedback/SMAGFDeathVisual.h"
@@ -12,6 +14,7 @@
 
 ASMAGFTarget::ASMAGFTarget()
 {
+	CreateDefaultSubobject<USMAGFEventPresentationComponent>(TEXT("Presentation"));
 	PrimaryActorTick.bCanEverTick = false;
 	Collision = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
 	SetRootComponent(Collision);
@@ -21,6 +24,7 @@ ASMAGFTarget::ASMAGFTarget()
 	Visual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Visual"));
 	Visual->SetupAttachment(Collision);
 	Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Visual->SetReceivesDecals(true);
 	Visual->SetRelativeScale3D(GetCollisionExtent() / 50.f);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Mesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	Visual->SetStaticMesh(Mesh.Object);
@@ -46,15 +50,23 @@ float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEve
 	AcceptedDamageDirection = DamageEvent.IsOfType(FPointDamageEvent::ClassID)
 		? SMAGFMotion::PlanarDirection(static_cast<const FPointDamageEvent&>(DamageEvent).ShotDirection)
 		: FVector::ForwardVector;
-	return Health->ApplyDamage(Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser));
+	const FVector Position = GetActorLocation();
+	const float Accepted = Health->ApplyDamage(Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser));
+	if (Accepted > 0.f)
+	{
+		if (auto* Presentation = FindComponentByClass<USMAGFEventPresentationComponent>()) { Presentation->Hit(Position, AcceptedDamageDirection); }
+	}
+	return Accepted;
 }
 
 void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);
+	if (auto* Presentation = FindComponentByClass<USMAGFEventPresentationComponent>()) { Presentation->Death(GetActorLocation(), AcceptedDamageDirection); }
 	const USMAGFShowcaseSubsystem* Showcase = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
-	if (Showcase && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyDeathReaction))
+	if (Showcase && (Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyDeathReaction)
+		|| Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::KeepEnemyBodies)))
 	{
 		const FTransform Transform = GetActorTransform();
 		if (ASMAGFDeathVisual* Copy = GetWorld()->SpawnActorDeferred<ASMAGFDeathVisual>(
@@ -62,6 +74,7 @@ void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 		{
 			Copy->CopyVisual(Visual, Reaction->GetBaseVisualTransform(), AcceptedDamageDirection);
 			Copy->FinishSpawning(Transform);
+			ASMAGFPresentationVisual::TransferSurfaceEvidence(this, Copy->GetVisualComponent());
 		}
 	}
 	Destroy();

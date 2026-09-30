@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
 #include "Components/ActorComponent.h"
 #include "Showcase/SMAGFShowcaseTypes.h"
 #include "Feedback/SMAGFMotion.h"
@@ -20,6 +21,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
 	void SetVisualComponent(USceneComponent* Component);
+	USceneComponent* GetVisualComponent() const { return Visual.Get(); }
 	void BeginAnticipation(float Duration);
 	void CancelAnticipation();
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Feedback")

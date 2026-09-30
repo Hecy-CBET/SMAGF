@@ -20,11 +20,13 @@ public class SMAGF : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"Niagara",
+			"PhysicsCore",
 			"UMG",
 			"Slate"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore" });
+		if (Target.bBuildEditor) { PrivateDependencyModuleNames.Add("NiagaraEditor"); }
 
 		PublicIncludePaths.AddRange(new string[] {
 			"SMAGF",

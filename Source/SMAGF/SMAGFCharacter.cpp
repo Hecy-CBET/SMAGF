@@ -1,4 +1,5 @@
 #include "SMAGFCharacter.h"
+#include "Presentation/SMAGFEventPresentationComponent.h"
 #include "SMAGF.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -13,6 +14,7 @@
 
 ASMAGFCharacter::ASMAGFCharacter()
 {
+	CreateDefaultSubobject<USMAGFEventPresentationComponent>(TEXT("Presentation"));
 	PrimaryActorTick.bCanEverTick = false;
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 	bUseControllerRotationPitch = false;

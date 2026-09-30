@@ -1,4 +1,5 @@
 #include "Combat/SMAGFWeaponComponent.h"
+#include "Presentation/SMAGFEventPresentationComponent.h"
 #include "Combat/SMAGFProjectile.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -128,6 +129,8 @@ void USMAGFWeaponComponent::FireShot()
 	{
 		Projectile->InitializeShot(GetOwner()->GetActorForwardVector(), ProjectileSpeed, ProjectileDamage);
 		Projectile->FinishSpawning(Transform);
+		if (auto* Presentation = GetOwner()->FindComponentByClass<USMAGFEventPresentationComponent>())
+		{ Presentation->Shot(Muzzle, GetOwner()->GetActorForwardVector()); }
 		if (USMAGFReactionComponent* Reaction = GetOwner()->FindComponentByClass<USMAGFReactionComponent>())
 		{
 			Reaction->OnShot(GetOwner()->GetActorForwardVector());
