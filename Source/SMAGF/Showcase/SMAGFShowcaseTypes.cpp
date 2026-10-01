@@ -167,7 +167,20 @@ bool FSMAGFSmokeAndMirrorsSettings::operator==(const FSMAGFSmokeAndMirrorsSettin
 		&& SlowMotionDuration == Other.SlowMotionDuration
 		&& EncounterResetDelay == Other.EncounterResetDelay
 		&& RandomSeed == Other.RandomSeed
-		&& SequenceDuration == Other.SequenceDuration;
+		&& SequenceDuration == Other.SequenceDuration
+		&& bEnemyThreatEnabled == Other.bEnemyThreatEnabled
+		&& EnemyEngagementRange == Other.EnemyEngagementRange
+		&& EnemyTelegraphDuration == Other.EnemyTelegraphDuration
+		&& EnemyProjectileSpeed == Other.EnemyProjectileSpeed
+		&& EnemyAttackCooldown == Other.EnemyAttackCooldown
+		&& bEnemyMovementEnabled == Other.bEnemyMovementEnabled
+		&& EnemyAttackStartRange == Other.EnemyAttackStartRange
+		&& EnemyMoveSpeedRatio == Other.EnemyMoveSpeedRatio
+		&& EnemyMoveSpeedDeviation == Other.EnemyMoveSpeedDeviation
+		&& EnemyMoveAcceleration == Other.EnemyMoveAcceleration
+		&& EnemyMoveDeceleration == Other.EnemyMoveDeceleration
+		&& EnemyRangeRecheckInterval == Other.EnemyRangeRecheckInterval
+		&& EnemyRangeRecheckJitter == Other.EnemyRangeRecheckJitter;
 }
 
 bool FSMAGFFocusSettings::operator==(const FSMAGFFocusSettings& Other) const
@@ -282,6 +295,18 @@ void FSMAGFShowcaseSettings::Validate()
 	Permanence.MaxPersistentCorpses = FMath::Clamp(Permanence.MaxPersistentCorpses, 0, 1000);
 	Permanence.MaxPersistentShells = FMath::Clamp(Permanence.MaxPersistentShells, 0, 1000);
 	Permanence.MaxPersistentDebris = FMath::Clamp(Permanence.MaxPersistentDebris, 0, 1000);
+	SmokeAndMirrors.EnemyEngagementRange = ValidFloat(SmokeAndMirrors.EnemyEngagementRange, 0.0f, 5000.0f, Defaults.SmokeAndMirrors.EnemyEngagementRange);
+	SmokeAndMirrors.EnemyTelegraphDuration = ValidFloat(SmokeAndMirrors.EnemyTelegraphDuration, 0.0f, 5.0f, Defaults.SmokeAndMirrors.EnemyTelegraphDuration);
+	SmokeAndMirrors.EnemyProjectileSpeed = ValidFloat(SmokeAndMirrors.EnemyProjectileSpeed, 100.0f, 3000.0f, Defaults.SmokeAndMirrors.EnemyProjectileSpeed);
+	SmokeAndMirrors.EnemyAttackCooldown = ValidFloat(SmokeAndMirrors.EnemyAttackCooldown, 0.1f, 10.0f, Defaults.SmokeAndMirrors.EnemyAttackCooldown);
+	SmokeAndMirrors.EnemyAttackStartRange = ValidFloat(SmokeAndMirrors.EnemyAttackStartRange, 0.0f, 5000.0f, Defaults.SmokeAndMirrors.EnemyAttackStartRange);
+	SmokeAndMirrors.EnemyMoveSpeedRatio = ValidFloat(SmokeAndMirrors.EnemyMoveSpeedRatio, 0.1f, 1.5f, Defaults.SmokeAndMirrors.EnemyMoveSpeedRatio);
+	SmokeAndMirrors.EnemyMoveSpeedDeviation = ValidFloat(SmokeAndMirrors.EnemyMoveSpeedDeviation, 0.0f, 0.5f, Defaults.SmokeAndMirrors.EnemyMoveSpeedDeviation);
+	SmokeAndMirrors.EnemyMoveAcceleration = ValidFloat(SmokeAndMirrors.EnemyMoveAcceleration, 1.0f, 5000.0f, Defaults.SmokeAndMirrors.EnemyMoveAcceleration);
+	SmokeAndMirrors.EnemyMoveDeceleration = ValidFloat(SmokeAndMirrors.EnemyMoveDeceleration, 1.0f, 5000.0f, Defaults.SmokeAndMirrors.EnemyMoveDeceleration);
+	SmokeAndMirrors.EnemyRangeRecheckInterval = ValidFloat(SmokeAndMirrors.EnemyRangeRecheckInterval, 0.1f, 30.0f, Defaults.SmokeAndMirrors.EnemyRangeRecheckInterval);
+	SmokeAndMirrors.EnemyRangeRecheckJitter = ValidFloat(SmokeAndMirrors.EnemyRangeRecheckJitter, 0.0f, 10.0f, Defaults.SmokeAndMirrors.EnemyRangeRecheckJitter);
+	SmokeAndMirrors.EnemyAttackStartRange = FMath::Min(SmokeAndMirrors.EnemyAttackStartRange, SmokeAndMirrors.EnemyEngagementRange);
 	SmokeAndMirrors.WaveSize = FMath::Clamp(SmokeAndMirrors.WaveSize, 1, 100);
 	SmokeAndMirrors.SlowMotionTimeScale = ValidFloat(SmokeAndMirrors.SlowMotionTimeScale, 0.01f, 1.f, Defaults.SmokeAndMirrors.SlowMotionTimeScale);
 	SmokeAndMirrors.SlowMotionDuration = ValidFloat(SmokeAndMirrors.SlowMotionDuration, 0.f, 10.f, Defaults.SmokeAndMirrors.SlowMotionDuration);

@@ -32,6 +32,10 @@ public:
 	FTransform GetBaseVisualTransform() const { return BaseVisual; }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
 	bool IsKnockbackActive() const { return KnockRemaining > 0.f; }
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Feedback")
+	void ReceiveShowcaseHostileHit(const FVector& Direction);
+	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
+	int32 GetHostileHitCount() const { return HostileHitCount; }
 	void BeginDeathPresentation(const FVector& IncomingDirection);
 	UFUNCTION(BlueprintPure, Category="SMAGF|Feedback")
 	bool IsAnimationActive() const;
@@ -67,7 +71,10 @@ private:
 	float Intensity = 1.f;
 	float BaselineAcceleration = 0.f;
 	float BaselineDeceleration = 0.f;
-	FPulse Recoil, Impact, HitReaction;
+	FPulse Recoil, Impact, HitReaction, HostileHit;
+	FVector HostileVelocity=FVector::ZeroVector;
+	float HostileRemaining=0.f;
+	int32 HostileHitCount=0;
 	float PreparationTime = 0.f;
 	float PreparationElapsed = 0.f;
 	FVector KnockVelocity = FVector::ZeroVector;

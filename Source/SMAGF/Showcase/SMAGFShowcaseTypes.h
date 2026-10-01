@@ -106,6 +106,8 @@ enum class ESMAGFShowcaseFeature : uint8
 	EventImportanceScaling,
 	ProjectileReadability,
 	ProjectileAnimation,
+	EnemyThreat,
+	EnemyMovement,
 	Count UMETA(Hidden)
 };
 
@@ -479,10 +481,10 @@ struct SMAGF_API FSMAGFPermanenceSettings
 	bool bKeepAftermathSmokeEnabled = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="300", UIMin="0", UIMax="300"))
-	float CorpseLifetime = 20.f; // Total retained lifetime, including dissolve.
+	float CorpseLifetime = 11.f; // Total retained lifetime, including dissolve.
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="30", UIMin="0", UIMax="30"))
-	float CorpseDissolveDuration = 5.f;
+	float CorpseDissolveDuration = 3.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Permanence", meta=(ClampMin="0", ClampMax="300", UIMin="0", UIMax="300"))
 	float ShellLifetime = 10.f;
@@ -556,6 +558,45 @@ struct SMAGF_API FSMAGFSmokeAndMirrorsSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="300", UIMin="0", UIMax="300"))
 	float SequenceDuration = 10.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors")
+	bool bEnemyThreatEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="5000", UIMin="0", UIMax="5000"))
+	float EnemyEngagementRange = 700.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="5", UIMin="0", UIMax="5"))
+	float EnemyTelegraphDuration = 0.7f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="100", ClampMax="3000", UIMin="100", UIMax="3000"))
+	float EnemyProjectileSpeed = 650.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0.1", ClampMax="10", UIMin="0.1", UIMax="10"))
+	float EnemyAttackCooldown = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors")
+	bool bEnemyMovementEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="5000", UIMin="0", UIMax="5000"))
+	float EnemyAttackStartRange = 500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0.1", ClampMax="1.5", UIMin="0.1", UIMax="1.5"))
+	float EnemyMoveSpeedRatio = 0.7f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="0.5", UIMin="0", UIMax="0.5"))
+	float EnemyMoveSpeedDeviation = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="1", ClampMax="5000", UIMin="1", UIMax="5000"))
+	float EnemyMoveAcceleration = 600.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="1", ClampMax="5000", UIMin="1", UIMax="5000"))
+	float EnemyMoveDeceleration = 700.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0.1", ClampMax="30", UIMin="0.1", UIMax="30"))
+	float EnemyRangeRecheckInterval = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SmokeAndMirrors", meta=(ClampMin="0", ClampMax="10", UIMin="0", UIMax="10"))
+	float EnemyRangeRecheckJitter = 1.0f;
 
 	bool operator==(const FSMAGFSmokeAndMirrorsSettings& Other) const;
 };

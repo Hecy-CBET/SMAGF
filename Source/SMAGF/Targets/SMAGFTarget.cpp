@@ -1,4 +1,7 @@
 #include "Targets/SMAGFTarget.h"
+#include "AIController.h"
+#include "GameFramework/FloatingPawnMovement.h"
+#include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "Presentation/SMAGFEventPresentationComponent.h"
 #include "Presentation/SMAGFPresentationVisual.h"
 #include "Combat/SMAGFHealthComponent.h"
@@ -14,13 +17,27 @@
 
 ASMAGFTarget::ASMAGFTarget()
 {
+	CreateDefaultSubobject<USMAGFEnemyShowcaseComponent>(TEXT("EnemyShowcase"));
 	CreateDefaultSubobject<USMAGFEventPresentationComponent>(TEXT("Presentation"));
 	PrimaryActorTick.bCanEverTick = false;
+	AIControllerClass=AAIController::StaticClass();
+	AutoPossessAI=EAutoPossessAI::PlacedInWorldOrSpawned;
+	bUseControllerRotationYaw=false; bUseControllerRotationPitch=false; bUseControllerRotationRoll=false;
 	Collision = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
 	SetRootComponent(Collision);
 	Collision->InitBoxExtent(GetCollisionExtent());
 	Collision->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	Collision->SetGenerateOverlapEvents(false);
+	Collision->SetCanEverAffectNavigation(false);
+	NavigationMovement=CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("NavigationMovement"));
+	NavigationMovement->SetUpdatedComponent(Collision);
+	NavigationMovement->NavAgentProps.AgentRadius=FMath::Max(Collision->GetScaledBoxExtent().X,Collision->GetScaledBoxExtent().Y);
+	NavigationMovement->NavAgentProps.AgentHeight=2.f*Collision->GetScaledBoxExtent().Z;
+	NavigationMovement->Acceleration=600.f; NavigationMovement->Deceleration=700.f;
+	NavigationMovement->GetNavMovementProperties()->bUseAccelerationForPaths=true;
+	// Attack ranges are planar, but locomotion must retain navigation-path elevation.
+	NavigationMovement->SetPlaneConstraintEnabled(false);
+	NavigationMovement->PrimaryComponentTick.bStartWithTickEnabled=false;
 	Visual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Visual"));
 	Visual->SetupAttachment(Collision);
 	Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -31,6 +48,15 @@ ASMAGFTarget::ASMAGFTarget()
 	Health = CreateDefaultSubobject<USMAGFHealthComponent>(TEXT("Health"));
 	Reaction = CreateDefaultSubobject<USMAGFReactionComponent>(TEXT("Reaction"));
 	Health->OnDeath.AddDynamic(this, &ASMAGFTarget::OnDied);
+}
+
+UPawnMovementComponent* ASMAGFTarget::GetMovementComponent() const { return NavigationMovement; }
+
+FVector ASMAGFTarget::GetNavAgentLocation() const
+{
+	// Match UNavMovementComponent::GetActorFeetLocation for the actual collision bounds.
+	return Collision ? Collision->GetComponentLocation()-FVector(0,0,Collision->Bounds.BoxExtent.Z)
+		: Super::GetNavAgentLocation();
 }
 
 void ASMAGFTarget::BeginPlay()
@@ -61,6 +87,7 @@ float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEve
 
 void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
+	if (auto* Enemy=FindComponentByClass<USMAGFEnemyShowcaseComponent>()) { Enemy->StopForDeath(); }
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);
 	if (auto* Presentation = FindComponentByClass<USMAGFEventPresentationComponent>()) { Presentation->Death(GetActorLocation(), AcceptedDamageDirection); }

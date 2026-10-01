@@ -135,6 +135,8 @@ bool USMAGFShowcaseSubsystem::SetFeatureEnabled(ESMAGFShowcaseFeature Feature, b
 	case ESMAGFShowcaseFeature::KeepImpactEvidence: Copy.Permanence.bKeepImpactEvidenceEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::KeepDebris: Copy.Permanence.bKeepDebrisEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::KeepAftermathSmoke: Copy.Permanence.bKeepAftermathSmokeEnabled = bEnabled; break;
+	case ESMAGFShowcaseFeature::EnemyMovement: Copy.SmokeAndMirrors.bEnemyMovementEnabled = bEnabled; break;
+	case ESMAGFShowcaseFeature::EnemyThreat: Copy.SmokeAndMirrors.bEnemyThreatEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::ScriptedEnemyWave: Copy.SmokeAndMirrors.bScriptedEnemyWaveEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::ForcedDramaticKill: Copy.SmokeAndMirrors.bForcedDramaticKillEnabled = bEnabled; break;
 	case ESMAGFShowcaseFeature::ForcedExplosion: Copy.SmokeAndMirrors.bForcedExplosionEnabled = bEnabled; break;
@@ -201,6 +203,8 @@ bool USMAGFShowcaseSubsystem::IsFeatureSelectedEnabled(ESMAGFShowcaseFeature Fea
 	case ESMAGFShowcaseFeature::KeepImpactEvidence: return Settings.Permanence.bKeepImpactEvidenceEnabled;
 	case ESMAGFShowcaseFeature::KeepDebris: return Settings.Permanence.bKeepDebrisEnabled;
 	case ESMAGFShowcaseFeature::KeepAftermathSmoke: return Settings.Permanence.bKeepAftermathSmokeEnabled;
+	case ESMAGFShowcaseFeature::EnemyMovement: return Settings.SmokeAndMirrors.bEnemyMovementEnabled;
+	case ESMAGFShowcaseFeature::EnemyThreat: return Settings.SmokeAndMirrors.bEnemyThreatEnabled;
 	case ESMAGFShowcaseFeature::ScriptedEnemyWave: return Settings.SmokeAndMirrors.bScriptedEnemyWaveEnabled;
 	case ESMAGFShowcaseFeature::ForcedDramaticKill: return Settings.SmokeAndMirrors.bForcedDramaticKillEnabled;
 	case ESMAGFShowcaseFeature::ForcedExplosion: return Settings.SmokeAndMirrors.bForcedExplosionEnabled;
@@ -271,6 +275,8 @@ ESMAGFShowcaseGroup USMAGFShowcaseSubsystem::GetFeatureGroup(ESMAGFShowcaseFeatu
 	case ESMAGFShowcaseFeature::KeepDebris:
 	case ESMAGFShowcaseFeature::KeepAftermathSmoke:
 		return ESMAGFShowcaseGroup::Permanence;
+	case ESMAGFShowcaseFeature::EnemyMovement:
+	case ESMAGFShowcaseFeature::EnemyThreat:
 	case ESMAGFShowcaseFeature::ScriptedEnemyWave:
 	case ESMAGFShowcaseFeature::ForcedDramaticKill:
 	case ESMAGFShowcaseFeature::ForcedExplosion:

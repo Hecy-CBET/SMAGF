@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
 #include "SMAGFTarget.generated.h"
 
 class UBoxComponent;
@@ -10,15 +10,19 @@ class USMAGFHealthComponent;
 class USMAGFReactionComponent;
 
 UCLASS()
-class SMAGF_API ASMAGFTarget : public AActor
+class SMAGF_API ASMAGFTarget : public APawn
 {
 	GENERATED_BODY()
 public:
 	ASMAGFTarget();
 	virtual void BeginPlay() override;
+	virtual UPawnMovementComponent* GetMovementComponent() const override;
+	virtual FVector GetNavAgentLocation() const override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	static FVector GetCollisionExtent() { return FVector(35.f, 35.f, 70.f); }
 protected:
+	UPROPERTY(VisibleAnywhere, Category="Components")
+	TObjectPtr<class UFloatingPawnMovement> NavigationMovement;
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<USMAGFReactionComponent> Reaction;
 	UPROPERTY(VisibleAnywhere, Category="Components")

@@ -63,6 +63,8 @@ void USMAGFReactionComponent::SettingsChanged()
 	{
 		KnockRemaining = 0.f; KnockVelocity = FVector::ZeroVector;
 	}
+	if (!Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyThreat))
+	{ HostileHit=FPulse(); HostileRemaining=0.f; HostileVelocity=FVector::ZeroVector; }
 	ClearDisabledMotion();
 	ComposeVisual();
 }
@@ -164,13 +166,13 @@ void USMAGFReactionComponent::ComposeVisual()
 {
 	if (!Visual.IsValid()) { return; }
 	const float R = Recoil.Weight(), I = Impact.Weight(), H = HitReaction.Weight();
-	FVector Offset = Recoil.Offset * R + Impact.Offset * I + HitReaction.Offset * H;
+	FVector Offset = Recoil.Offset * R + Impact.Offset * I + HitReaction.Offset * H + HostileHit.Offset * HostileHit.Weight();
 	if (PreparationTime > 0.f)
 	{
 		Offset += ToVisualParent(-GetOwner()->GetActorForwardVector()) * (10.f * Tuning.AnticipationScale
 			* FMath::Clamp(PreparationElapsed / PreparationTime, 0.f, 1.f));
 	}
-	FRotator Rotation = Recoil.Rotation * R + Impact.Rotation * I + HitReaction.Rotation * H;
+	FRotator Rotation = Recoil.Rotation * R + Impact.Rotation * I + HitReaction.Rotation * H + HostileHit.Rotation * HostileHit.Weight();
 	FVector Scale = FVector::OneVector;
 	FQuat AxisRotation = FQuat::Identity;
 	AddAnimation(Offset, Rotation, Scale, AxisRotation);
@@ -194,6 +196,14 @@ void USMAGFReactionComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 	// The sole DeathVisual owns the shared body/disappearance retirement deadline.
 	if (bDeathPresentation && !IsAnimationActive() && !Corpse) { GetOwner()->Destroy(); return; }
+	HostileHit.Advance(DeltaTime);
+	if (HostileRemaining>0.f && CharacterMovement.IsValid())
+	{
+		const float Step=FMath::Min(DeltaTime,HostileRemaining);
+		const FVector Delta=HostileVelocity*Step*((HostileRemaining-Step*.5f)/.25f);
+		FHitResult Hit;CharacterMovement->SafeMoveUpdatedComponent(Delta,GetOwner()->GetActorQuat(),true,Hit);
+		HostileRemaining=Hit.IsValidBlockingHit()?0.f:HostileRemaining-Step;
+	}
 	Recoil.Advance(DeltaTime); Impact.Advance(DeltaTime); HitReaction.Advance(DeltaTime);
 	PreparationElapsed += DeltaTime;
 	if (KnockRemaining > 0.f && KnockDuration > 0.f)
@@ -314,4 +324,16 @@ void USMAGFReactionComponent::AddAnimation(FVector& Offset, FRotator& Rotation, 
 	Offset += AnimationOffset.GetClampedToMaxSize(60.f);
 	Rotation += FRotator(FMath::Clamp(AnimationRotation.Pitch, -85.f, 85.f),
 		FMath::Clamp(AnimationRotation.Yaw, -85.f, 85.f), FMath::Clamp(AnimationRotation.Roll, -85.f, 85.f));
+}
+
+void USMAGFReactionComponent::ReceiveShowcaseHostileHit(const FVector& Direction)
+{
+ if(!CharacterMovement.IsValid() || !Showcase.IsValid() || !Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyThreat) || Direction.ContainsNaN()) { return; }
+ ++HostileHitCount;
+ const FVector Push=Direction.GetSafeNormal2D();
+ // Refresh a bounded impulse rather than stacking velocities or disabling input.
+ HostileVelocity=Push*800.f;HostileRemaining=.25f;
+ HostileHit=FPulse();HostileHit.Offset=ToVisualParent(Push)*5.f*Showcase->GetMasterIntensity();
+ HostileHit.Rotation=FRotator(4.f*Showcase->GetMasterIntensity(),0,0);HostileHit.Recovery=.2f;
+ ComposeVisual();
 }

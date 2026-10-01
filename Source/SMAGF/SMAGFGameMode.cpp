@@ -1,4 +1,5 @@
 #include "SMAGFGameMode.h"
+#include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "SMAGF.h"
 #include "SMAGFCharacter.h"
 #include "SMAGFPlayerController.h"
@@ -19,6 +20,7 @@ void ASMAGFGameMode::BeginPlay()
 	const FVector Extent = ASMAGFTarget::GetCollisionExtent();
 	FCollisionQueryParams Query(SCENE_QUERY_STAT(SMAGFTargetGround), false);
 	const FCollisionObjectQueryParams GroundObjects(ECC_WorldStatic);
+	int32 SpawnIndex=0;
 	for (const FVector2D& XY : Positions)
 	{
 		FHitResult Ground;
@@ -54,6 +56,7 @@ void ASMAGFGameMode::BeginPlay()
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
 		if (ASMAGFTarget* Target = GetWorld()->SpawnActor<ASMAGFTarget>(Location, FRotator::ZeroRotator, Params))
 		{
+			Target->FindComponentByClass<USMAGFEnemyShowcaseComponent>()->SetSpawnIndex(SpawnIndex++);
 			UE_LOG(LogSMAGF, Log, TEXT("Baseline target %s at %s (ground Z %.1f)."),
 				*Target->GetName(), *Location.ToString(), Ground.ImpactPoint.Z);
 		}
