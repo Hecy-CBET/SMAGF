@@ -36,10 +36,14 @@ private:
  void AdjustPursuitInput(class UPathFollowingComponent* Following, FVector& Input);
  void EnterPursuit();
  void EnterAttack();
+ void BeginTelegraph();
  void ScheduleRecheck();
  void UpdatePursuit(class APawn* Player,float Dt);
  bool bBraking=false;
  bool bSpeedInitialized=false,bMovementWasEnabled=false,bDead=false;
+ bool bNavSurfaceOffsetInitialized=false;
+ bool bRecoveringNavProjection=false;
+ float NavSurfaceOffset=0.f;
  float StoredSpeed=0.f,SpeedDeviation=0.f,PlayerSpeedReference=0.f;
  float RecheckRemaining=0.f,RetryRemaining=0.f;
  int32 MoveRequestCount=0;

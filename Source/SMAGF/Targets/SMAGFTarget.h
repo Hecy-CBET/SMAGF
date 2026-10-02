@@ -16,6 +16,9 @@ class SMAGF_API ASMAGFTarget : public APawn
 public:
 	ASMAGFTarget();
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	UFUNCTION(BlueprintPure, Category="SMAGF|Focus") bool IsAliveForFocus() const;
+	UFUNCTION(BlueprintPure, Category="SMAGF|Focus") FVector GetFocusAnchor() const;
 	virtual UPawnMovementComponent* GetMovementComponent() const override;
 	virtual FVector GetNavAgentLocation() const override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

@@ -1,4 +1,5 @@
 #include "SMAGFGameMode.h"
+#include "Showcase/SMAGFShowcaseDirector.h"
 #include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "SMAGF.h"
 #include "SMAGFCharacter.h"
@@ -15,6 +16,8 @@ ASMAGFGameMode::ASMAGFGameMode()
 void ASMAGFGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	if (GetWorld()->IsGameWorld() && !IsValid(ShowcaseDirector))
+	{ ShowcaseDirector=GetWorld()->SpawnActor<ASMAGFShowcaseDirector>(); }
 	// Flat platforms: the previous 650 cm offsets landed on the sloped ramps.
 	const FVector2D Positions[] = { {425.f, 0.f}, {-425.f, 0.f}, {0.f, 425.f}, {0.f, -425.f} };
 	const FVector Extent = ASMAGFTarget::GetCollisionExtent();

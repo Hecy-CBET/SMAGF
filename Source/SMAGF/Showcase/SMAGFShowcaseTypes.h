@@ -629,7 +629,8 @@ struct SMAGF_API FSMAGFFocusSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="2", UIMin="0", UIMax="2"))
 	float FocusIntensity = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="10", UIMin="0", UIMax="10"))
+	// Game-time release grace after the cursor leaves the release radius. Serialized name retained.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(DisplayName="Focus Release Grace", ClampMin="0", ClampMax="10", UIMin="0", UIMax="10"))
 	float FocusDuration = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="1000", UIMin="0", UIMax="1000"))
@@ -640,6 +641,28 @@ struct SMAGF_API FSMAGFFocusSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="-5", ClampMax="5", UIMin="-5", UIMax="5"))
 	float FocusExposureBias = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	float FocusFramingWeight = .35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="1000", UIMin="0", UIMax="1000"))
+	float FocusMaxCameraOffset = 220.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0.1", ClampMax="30", UIMin="0.1", UIMax="30"))
+	float FocusCameraInterpSpeed = 6.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax="15", UIMin="0", UIMax="15"))
+	float FocusFOVReduction = 3.f;
+
+	/** Screen-space fractions of min(viewport width, viewport height). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin=".01", ClampMax=".50", UIMin=".01", UIMax=".50"))
+	float FocusAcquireRadius = .12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin=".01", ClampMax=".75", UIMin=".01", UIMax=".75"))
+	float FocusReleaseRadius = .18f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus", meta=(ClampMin="0", ClampMax=".25", UIMin="0", UIMax=".25"))
+	float FocusSwitchAdvantage = .04f;
 
 	bool operator==(const FSMAGFFocusSettings& Other) const;
 };

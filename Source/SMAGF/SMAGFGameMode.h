@@ -10,6 +10,9 @@ class SMAGF_API ASMAGFGameMode : public AGameModeBase
 	GENERATED_BODY()
 public:
 	ASMAGFGameMode();
+	class ASMAGFShowcaseDirector* GetShowcaseDirector() const { return ShowcaseDirector; }
+private:
+	UPROPERTY(Transient) TObjectPtr<class ASMAGFShowcaseDirector> ShowcaseDirector;
 protected:
 	virtual void BeginPlay() override;
 };

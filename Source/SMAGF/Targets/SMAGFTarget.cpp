@@ -1,4 +1,5 @@
 #include "Targets/SMAGFTarget.h"
+#include "Showcase/SMAGFShowcaseDirector.h"
 #include "AIController.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Enemy/SMAGFEnemyShowcaseComponent.h"
@@ -63,6 +64,19 @@ void ASMAGFTarget::BeginPlay()
 {
 	Super::BeginPlay();
 	Reaction->SetVisualComponent(Visual);
+	if (auto* Director=ASMAGFShowcaseDirector::Get(GetWorld())) { Director->RegisterTarget(this); }
+}
+
+bool ASMAGFTarget::IsAliveForFocus() const
+{ return !IsActorBeingDestroyed() && Health && Health->CurrentHealth>0.f; }
+
+FVector ASMAGFTarget::GetFocusAnchor() const
+{ return Collision ? Collision->Bounds.Origin : GetActorLocation(); }
+
+void ASMAGFTarget::EndPlay(const EEndPlayReason::Type Reason)
+{
+	if (auto* Director=ASMAGFShowcaseDirector::Get(GetWorld())) { Director->UnregisterTarget(this); }
+	Super::EndPlay(Reason);
 }
 
 float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
@@ -87,6 +101,7 @@ float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEve
 
 void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
+	if (auto* Director=ASMAGFShowcaseDirector::Get(GetWorld())) { Director->UnregisterTarget(this); }
 	if (auto* Enemy=FindComponentByClass<USMAGFEnemyShowcaseComponent>()) { Enemy->StopForDeath(); }
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);

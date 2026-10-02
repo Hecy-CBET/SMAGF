@@ -49,7 +49,8 @@ void ASMAGFEnemyProjectile::OnImpact(UPrimitiveComponent*,AActor* Other,UPrimiti
  const FVector Direction=FlightDirection;
  Movement->StopMovementImmediately();Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
  if(auto* Player=Cast<ASMAGFCharacter>(Other))
- { if(auto* Reaction=Player->FindComponentByClass<USMAGFReactionComponent>()) { Reaction->ReceiveShowcaseHostileHit(Direction); } }
+ { if(auto* Reaction=Player->FindComponentByClass<USMAGFReactionComponent>()) { Reaction->ReceiveShowcaseHostileHit(Direction); }
+ }
  Destroy();
 }
 void ASMAGFEnemyProjectile::EndPlay(const EEndPlayReason::Type Reason)

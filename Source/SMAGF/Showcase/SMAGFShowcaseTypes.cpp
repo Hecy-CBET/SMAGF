@@ -196,7 +196,14 @@ bool FSMAGFFocusSettings::operator==(const FSMAGFFocusSettings& Other) const
 		&& FocusDuration == Other.FocusDuration
 		&& FocusCameraBias == Other.FocusCameraBias
 		&& FocusVignetteAmount == Other.FocusVignetteAmount
-		&& FocusExposureBias == Other.FocusExposureBias;
+		&& FocusExposureBias == Other.FocusExposureBias
+		&& FocusFramingWeight == Other.FocusFramingWeight
+		&& FocusMaxCameraOffset == Other.FocusMaxCameraOffset
+		&& FocusCameraInterpSpeed == Other.FocusCameraInterpSpeed
+		&& FocusFOVReduction == Other.FocusFOVReduction
+		&& FocusAcquireRadius == Other.FocusAcquireRadius
+		&& FocusReleaseRadius == Other.FocusReleaseRadius
+		&& FocusSwitchAdvantage == Other.FocusSwitchAdvantage;
 }
 
 bool FSMAGFJuiceResponsiblySettings::operator==(const FSMAGFJuiceResponsiblySettings& Other) const
@@ -318,6 +325,14 @@ void FSMAGFShowcaseSettings::Validate()
 	Focus.FocusCameraBias = ValidFloat(Focus.FocusCameraBias, 0.f, 1000.f, Defaults.Focus.FocusCameraBias);
 	Focus.FocusVignetteAmount = ValidFloat(Focus.FocusVignetteAmount, 0.f, 1.f, Defaults.Focus.FocusVignetteAmount);
 	Focus.FocusExposureBias = ValidFloat(Focus.FocusExposureBias, -5.f, 5.f, Defaults.Focus.FocusExposureBias);
+	Focus.FocusFramingWeight = ValidFloat(Focus.FocusFramingWeight, 0.0f, 1.0f, Defaults.Focus.FocusFramingWeight);
+	Focus.FocusMaxCameraOffset = ValidFloat(Focus.FocusMaxCameraOffset, 0.0f, 1000.0f, Defaults.Focus.FocusMaxCameraOffset);
+	Focus.FocusCameraInterpSpeed = ValidFloat(Focus.FocusCameraInterpSpeed, 0.1f, 30.0f, Defaults.Focus.FocusCameraInterpSpeed);
+	Focus.FocusFOVReduction = ValidFloat(Focus.FocusFOVReduction, 0.0f, 15.0f, Defaults.Focus.FocusFOVReduction);
+	Focus.FocusAcquireRadius = ValidFloat(Focus.FocusAcquireRadius, .01f, .50f, Defaults.Focus.FocusAcquireRadius);
+	Focus.FocusReleaseRadius = ValidFloat(Focus.FocusReleaseRadius, .01f, .75f, Defaults.Focus.FocusReleaseRadius);
+	Focus.FocusSwitchAdvantage = ValidFloat(Focus.FocusSwitchAdvantage, 0.f, .25f, Defaults.Focus.FocusSwitchAdvantage);
+	Focus.FocusReleaseRadius = FMath::Max(Focus.FocusAcquireRadius, Focus.FocusReleaseRadius);
 	JuiceResponsibly.MinorMultiplier = ValidFloat(JuiceResponsibly.MinorMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.MinorMultiplier);
 	JuiceResponsibly.NormalMultiplier = ValidFloat(JuiceResponsibly.NormalMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.NormalMultiplier);
 	JuiceResponsibly.MajorMultiplier = ValidFloat(JuiceResponsibly.MajorMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.MajorMultiplier);

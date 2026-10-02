@@ -39,6 +39,7 @@ bool USMAGFEnemyShowcaseComponent::MovementEnabled() const
 void USMAGFEnemyShowcaseComponent::StopNavigation(bool bImmediate)
 {
  bBraking=false;
+ bRecoveringNavProjection=false;
  if(auto* Pawn=Cast<APawn>(GetOwner()))
  {
   if(auto* Controller=Cast<AAIController>(Pawn->GetController()))
@@ -74,6 +75,62 @@ void USMAGFEnemyShowcaseComponent::AdjustPursuitInput(UPathFollowingComponent*,F
  auto* Pawn=Cast<APawn>(GetOwner());
  auto* Movement=Pawn?Cast<UFloatingPawnMovement>(Pawn->GetMovementComponent()):nullptr;
  if(!Player || !Movement) { return; }
+ // Recast may return one straight segment across flat/ramp/flat surfaces. Its
+ // interpolated segment Z is not the floor height between the endpoints.
+ // Steer vertically toward the local nav surface through the native movement
+ // input; never snap the actor or replace the path's horizontal direction.
+ const FVector PlanarDirection=Input.GetSafeNormal2D();
+ auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+ const FVector Feet=Pawn->GetNavAgentLocation();
+ FNavLocation Surface;
+ if(!PlanarDirection.IsNearlyZero() && Nav && Nav->ProjectPointToNavigation(
+     Feet,Surface,FVector(25.f,25.f,35.f),&Movement->GetNavAgentPropertiesRef()))
+ {
+  if(!bNavSurfaceOffsetInitialized)
+  {
+   // Keep the spawn's feet-to-nav offset: voxelized nav height is not the
+   // physical floor height. Do not introduce a new ground clearance setting.
+   NavSurfaceOffset=Surface.Location.Z-Feet.Z;bNavSurfaceOffsetInitialized=true;
+  }
+  FVector SurfaceDirection=PlanarDirection*20.f;
+  SurfaceDirection.Z=Surface.Location.Z-NavSurfaceOffset-Feet.Z;
+  FVector SteeringDirection=SurfaceDirection.GetSafeNormal();
+  if(bRecoveringNavProjection && Movement->MaxSpeed>UE_SMALL_NUMBER)
+  {
+   // Reacquiring a surface can expose the entire accumulated height error in
+   // one frame. Bound the vertical steering change using the existing native
+   // acceleration and turning response; do not retune either movement setting.
+   // Keep this guard for the remaining pursuit to also soften the return from
+   // descent. A new path starts normally; another projection miss re-arms it.
+   const float VelocityAllowance=Movement->Acceleration/FMath::Max(1.f,Movement->TurningBoost);
+   // Follow the local slope while closing the accumulated height error over
+   // time. The ordinary 20cm direction construction is too steep for a large
+   // recovery error and can drive the pawn into the floor before turning up.
+   FNavLocation AheadSurface;
+   float SurfaceVerticalSpeed=0.f;
+   if(Nav->ProjectPointToNavigation(Feet+PlanarDirection*20.f,AheadSurface,
+       FVector(25.f,25.f,35.f),&Movement->GetNavAgentPropertiesRef()))
+   {
+    SurfaceVerticalSpeed=(AheadSurface.Location.Z-Surface.Location.Z)
+        *Movement->Velocity.Size2D()/20.f;
+   }
+   const float HeightError=Surface.Location.Z-NavSurfaceOffset-Feet.Z;
+   const float DesiredZ=FMath::Clamp(SurfaceVerticalSpeed+HeightError*2.f,
+       -Movement->MaxSpeed,Movement->MaxSpeed);
+   const float GuardedZ=FMath::Clamp(DesiredZ,
+       Movement->Velocity.Z-VelocityAllowance,Movement->Velocity.Z+VelocityAllowance);
+   const float UnitZ=FMath::Clamp(GuardedZ/Movement->MaxSpeed,-1.f,1.f);
+   SteeringDirection=PlanarDirection*FMath::Sqrt(FMath::Max(0.f,1.f-UnitZ*UnitZ));
+   SteeringDirection.Z=UnitZ;
+  }
+  Input=SteeringDirection*Input.Size();
+ }
+ else
+ {
+  // Preserve the engine path input while projection is unavailable. No stale
+  // surface position is used during this interval.
+  bRecoveringNavProjection=true;
+ }
  // The engine brakes relative to the player endpoint. Our stationary boundary is
  // 500 cm earlier. Limit analog path input there; the engine still integrates
  // acceleration/deceleration and steers along the full XYZ navigation path.
@@ -108,6 +165,10 @@ void USMAGFEnemyShowcaseComponent::ScheduleRecheck()
  RecheckRemaining=FMath::Max(.05f,T.EnemyRangeRecheckInterval+RecheckRandom.FRandRange(-T.EnemyRangeRecheckJitter,T.EnemyRangeRecheckJitter));
  if(RecheckDelays.Num()==16) { RecheckDelays.RemoveAt(0); }
  RecheckDelays.Add(RecheckRemaining);
+}
+void USMAGFEnemyShowcaseComponent::BeginTelegraph()
+{
+ State=ESMAGFEnemyState::Telegraph;Elapsed=0.f;
 }
 void USMAGFEnemyShowcaseComponent::EnterAttack()
 {
@@ -193,7 +254,7 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    { if(Distance>T.EnemyEngagementRange) { EnterPursuit();UpdatePursuit(Player,Dt); } else { ScheduleRecheck(); } }
   }
   Elapsed+=Dt;
-  if(State==ESMAGFEnemyState::AttackDelay && Elapsed>=.6f+SpawnIndex*.3f) { State=ESMAGFEnemyState::Telegraph;Elapsed=0.f; }
+  if(State==ESMAGFEnemyState::AttackDelay && Elapsed>=.6f+SpawnIndex*.3f) { BeginTelegraph(); }
   else if(State==ESMAGFEnemyState::Telegraph && Elapsed>=T.EnemyTelegraphDuration)
   {
    const FVector Origin=GetOwner()->GetActorLocation()+GetOwner()->GetActorForwardVector()*FrontOffset;
@@ -202,7 +263,7 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    { Projectile->InitializeFlight(Player->GetActorLocation()-Origin,T.EnemyProjectileSpeed);++ShotsFired; }
    State=ESMAGFEnemyState::Cooldown;Elapsed=0.f;
   }
-  else if(State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { State=ESMAGFEnemyState::Telegraph;Elapsed=0.f; }
+  else if(State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { BeginTelegraph(); }
  }
  const float Pulse=State==ESMAGFEnemyState::Telegraph?FMath::Clamp(Elapsed/FMath::Max(T.EnemyTelegraphDuration,.001f),0.f,1.f):0.f;
  Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)*(1.f+.3f*Pulse*S.Master.MasterIntensity));
