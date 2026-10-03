@@ -305,12 +305,6 @@ bool USMAGFShowcaseSubsystem::IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature 
 	return IsShowcaseEnabled() && IsGroupEnabled(GetFeatureGroup(Feature)) && IsFeatureSelectedEnabled(Feature);
 }
 
-float USMAGFShowcaseSubsystem::GetEventImportanceMultiplier(ESMAGFEventImportance Importance) const
-{
-	return Settings.JuiceResponsibly.ResolveMultiplier(Importance);
-}
-
-
 bool USMAGFShowcaseSubsystem::CommitState(const FSMAGFShowcaseSettings& Candidate, ESMAGFShowcasePreset Preset, bool bSaveCustom)
 {
 	if (bCommitting) { return false; }
@@ -333,23 +327,24 @@ bool USMAGFShowcaseSubsystem::CommitState(const FSMAGFShowcaseSettings& Candidat
 FSMAGFShowcaseSettings USMAGFShowcaseSubsystem::ResolvePreset(ESMAGFShowcasePreset Preset) const
 {
 	if (Preset == ESMAGFShowcasePreset::Custom) { return bHasCustomSnapshot ? CustomSnapshot : Settings; }
-	if (static_cast<uint8>(Preset) > static_cast<uint8>(ESMAGFShowcasePreset::FullShowcase)) { return Settings; }
+	const int32 Rank = SMAGFOrderedPresets().Find(Preset);
+	if (Rank == INDEX_NONE) { return Settings; }
 	FSMAGFShowcaseSettings Result = StartupDefaults;
 	Result.Master.bShowcaseEnabled = Preset != ESMAGFShowcasePreset::Baseline;
-	Result.Feeling.bEnabled = Preset >= ESMAGFShowcasePreset::Feeling;
-	Result.Animation.bEnabled = Preset >= ESMAGFShowcasePreset::Animation;
-	Result.Audiovisual.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
-	Result.Camera.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
-	Result.Permanence.bEnabled = Preset >= ESMAGFShowcasePreset::Audiovisual;
-	Result.SmokeAndMirrors.bEnabled = Preset >= ESMAGFShowcasePreset::SmokeAndMirrors;
-	Result.Focus.bEnabled = Preset >= ESMAGFShowcasePreset::Focus;
-	Result.JuiceResponsibly.bEnabled = Preset == ESMAGFShowcasePreset::FullShowcase;
+	Result.Feeling.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Feeling);
+	Result.Animation.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Animation);
+	Result.Audiovisual.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Audiovisual);
+	Result.Camera.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Audiovisual);
+	Result.Permanence.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Audiovisual);
+	Result.SmokeAndMirrors.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::SmokeAndMirrors);
+	Result.Focus.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::Focus);
+	Result.JuiceResponsibly.bEnabled = Rank >= SMAGFOrderedPresets().Find(ESMAGFShowcasePreset::JuiceResponsibly);
 	return Result;
 }
 
 bool USMAGFShowcaseSubsystem::SetShowcasePreset(ESMAGFShowcasePreset Preset)
 {
-	if (static_cast<uint8>(Preset) > static_cast<uint8>(ESMAGFShowcasePreset::Custom)
+	if ((Preset != ESMAGFShowcasePreset::Custom && !SMAGFOrderedPresets().Contains(Preset))
 		|| (Preset == ESMAGFShowcasePreset::Custom && !bHasCustomSnapshot)) { return false; }
 	return CommitState(ResolvePreset(Preset), Preset, false);
 }
@@ -358,14 +353,16 @@ bool USMAGFShowcaseSubsystem::NextShowcasePreset()
 {
 	const ESMAGFShowcasePreset Reference = ActivePreset == ESMAGFShowcasePreset::Custom ? LastNamedPreset : ActivePreset;
 	if (Reference == ESMAGFShowcasePreset::FullShowcase) { return false; }
-	return SetShowcasePreset(static_cast<ESMAGFShowcasePreset>(static_cast<uint8>(Reference) + 1));
+	const int32 Index = SMAGFOrderedPresets().Find(Reference);
+	return Index != INDEX_NONE && Index + 1 < SMAGFOrderedPresets().Num() && SetShowcasePreset(SMAGFOrderedPresets()[Index + 1]);
 }
 
 bool USMAGFShowcaseSubsystem::PreviousShowcasePreset()
 {
 	const ESMAGFShowcasePreset Reference = ActivePreset == ESMAGFShowcasePreset::Custom ? LastNamedPreset : ActivePreset;
 	if (Reference == ESMAGFShowcasePreset::Baseline) { return false; }
-	return SetShowcasePreset(static_cast<ESMAGFShowcasePreset>(static_cast<uint8>(Reference) - 1));
+	const int32 Index = SMAGFOrderedPresets().Find(Reference);
+	return Index > 0 && SetShowcasePreset(SMAGFOrderedPresets()[Index - 1]);
 }
 
 bool USMAGFShowcaseSubsystem::ResetCurrentGroupToDefaults(ESMAGFShowcaseGroup Group)

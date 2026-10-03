@@ -275,9 +275,9 @@ void ASMAGFProjectile::OnImpact(UPrimitiveComponent* HitComponent, AActor* Other
 		if (AppliedDamage > 0.f && (Health.IsValid() || Reaction))
 		{
 			if (Reaction) { Reaction->OnDamagingHit(AcceptedDirection); }
-			if (USMAGFFeedbackSubsystem* Feedback = GetWorld()->GetSubsystem<USMAGFFeedbackSubsystem>()) { Feedback->NotifyDamagingHit(bKilled); }
 		}
 	}
+	if (USMAGFFeedbackSubsystem* Feedback = GetWorld()->GetSubsystem<USMAGFFeedbackSubsystem>()) { Feedback->NotifyContact(ContactDamage, bContactKilled); }
 	UE_LOG(LogSMAGF, Verbose, TEXT("SMAGF_CONTACT_RESULT id=%u damage=%g killed=%d niagara=%d"), GetUniqueID(), ContactDamage, bContactKilled, NiagaraCount);
 	if (!bAnimation || Animation.ProjectileImpactAnimationDuration <= 0.f) { Destroy(); }
 }

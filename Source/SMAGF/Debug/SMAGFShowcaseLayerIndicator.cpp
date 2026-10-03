@@ -25,6 +25,7 @@ void SSMAGFShowcaseLayerIndicator::Refresh()
 	switch(P)
 	{
 	case ESMAGFShowcasePreset::SmokeAndMirrors: Value=TEXT("SMOKE & MIRRORS"); break;
+	case ESMAGFShowcasePreset::JuiceResponsibly: Value=TEXT("JUICE RESPONSIBLY"); break;
 	case ESMAGFShowcasePreset::FullShowcase: Value=TEXT("FULL SHOWCASE"); break;
 	default: Value=StaticEnum<ESMAGFShowcasePreset>()->GetNameStringByValue(int64(P)).ToUpper(); break;
 	}

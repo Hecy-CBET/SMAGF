@@ -1,4 +1,5 @@
 #include "SMAGFPlayerController.h"
+#include "SMAGFGameMode.h"
 #include "Debug/SMAGFShowcaseLayerIndicator.h"
 #include "Camera/SMAGFPlayerCameraManager.h"
 #include "SMAGF.h"
@@ -341,7 +342,7 @@ bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
 
 bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 {
-	if (IsLocalController() && EventArgs.Key == EKeys::F
+	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G)
 		&& (EventArgs.Event == IE_Pressed || EventArgs.Event == IE_Repeat))
 	{
 		const bool bControlDown = FSlateApplication::IsInitialized()
@@ -357,6 +358,19 @@ bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 
 bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat)
 {
+	if (Key == EKeys::G && bControlDown)
+	{
+		if (FSlateApplication::IsInitialized())
+		{
+			const auto FocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+			if (FocusedWidget.IsValid() && FocusedWidget->GetTypeAsString().Contains(TEXT("EditableText"))) { return false; }
+		}
+		if (!bIsRepeat && GetWorld())
+		{
+			if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>()) { Mode->CycleEnemyDebugMode(); }
+		}
+		return true;
+	}
 	if (Key != EKeys::F || !bControlDown) { return false; }
 	// Both routes consume Ctrl+F. Native pressed/repeat edges need no persistent latch.
 	if (!bIsRepeat) { ToggleShowcasePanel(); }

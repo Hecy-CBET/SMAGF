@@ -71,10 +71,6 @@ public:
 	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
 	ESMAGFShowcaseGroup GetFeatureGroup(ESMAGFShowcaseFeature Feature) const;
 
-	/** Configured multiplier only; does not alter any gameplay value or apply master intensity. */
-	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")
-	float GetEventImportanceMultiplier(ESMAGFEventImportance Importance) const;
-
 	UPROPERTY(BlueprintAssignable, Category="SMAGF|Showcase")
 	FSMAGFShowcaseSettingsChanged OnSettingsChanged;
 

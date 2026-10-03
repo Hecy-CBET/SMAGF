@@ -1,9 +1,10 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Enemy/SMAGFEnemyDebugMode.h"
 #include "SMAGFEnemyShowcaseComponent.generated.h"
 UENUM(BlueprintType)
-enum class ESMAGFEnemyState : uint8 { Idle, Telegraph, Cooldown, Pursuit, AttackDelay };
+enum class ESMAGFEnemyState : uint8 { Idle, Telegraph, Cooldown, Pursuit, AttackDelay, Hold };
 UCLASS(ClassGroup=(SMAGF))
 class SMAGF_API USMAGFEnemyShowcaseComponent : public UActorComponent
 {
@@ -14,6 +15,8 @@ public:
  virtual void EndPlay(const EEndPlayReason::Type Reason) override;
  virtual void TickComponent(float Dt,ELevelTick Type,FActorComponentTickFunction* Function) override;
  void StopForDeath();
+ void ApplyDebugBehaviorMode(ESMAGFEnemyDebugMode NewMode);
+ UFUNCTION(BlueprintPure) ESMAGFEnemyDebugMode GetDebugBehaviorMode() const { return DebugMode; }
  void SetSpawnIndex(int32 Value) { SpawnIndex=FMath::Max(0,Value); }
  UFUNCTION(BlueprintPure) ESMAGFEnemyState GetThreatState() const { return State; }
  UFUNCTION(BlueprintPure) int32 GetShotsFired() const { return ShotsFired; }
@@ -29,6 +32,7 @@ private:
  void ResetCycle();
  bool Enabled() const;
  bool MovementEnabled() const;
+ bool OffenseEnabled() const;
  bool InitializeMovement();
  void StopNavigation(bool bImmediate = true);
  void BeginBraking();
@@ -40,6 +44,7 @@ private:
  void ScheduleRecheck();
  void UpdatePursuit(class APawn* Player,float Dt);
  bool bBraking=false;
+ ESMAGFEnemyDebugMode DebugMode=ESMAGFEnemyDebugMode::Aggressive;
  bool bSpeedInitialized=false,bMovementWasEnabled=false,bDead=false;
  bool bNavSurfaceOffsetInitialized=false;
  bool bRecoveringNavProjection=false;

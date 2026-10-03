@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "SMAGF.h"
+#include "SMAGFGameMode.h"
 #include "Enemy/SMAGFEnemyProjectile.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Components/StaticMeshComponent.h"
@@ -31,11 +32,23 @@ void USMAGFEnemyShowcaseComponent::BeginPlay()
  MarkerMaterial=UMaterialInstanceDynamic::Create(LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Variant_TwinStick/M_Glow.M_Glow")),this);
  Marker->SetMaterial(0,MarkerMaterial);
  Showcase=GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
+ if(const auto* Mode=GetWorld()->GetAuthGameMode<ASMAGFGameMode>()) { DebugMode=Mode->GetEnemyDebugMode(); }
  if(Showcase.IsValid()) { Handle=Showcase->OnSettingsChangedNative.AddUObject(this,&ThisClass::SettingsChanged); }
  SettingsChanged();
 }
 bool USMAGFEnemyShowcaseComponent::MovementEnabled() const
-{ return Enabled() && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyMovement); }
+{ return Enabled() && DebugMode!=ESMAGFEnemyDebugMode::Passive && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyMovement); }
+bool USMAGFEnemyShowcaseComponent::OffenseEnabled() const
+{ return Enabled() && DebugMode==ESMAGFEnemyDebugMode::Aggressive; }
+void USMAGFEnemyShowcaseComponent::ApplyDebugBehaviorMode(ESMAGFEnemyDebugMode NewMode)
+{
+ if(bDead || DebugMode==NewMode) { return; }
+ DebugMode=NewMode;
+ // Reset decisions and abort the current path without moving the actor or
+ // resampling its speed. Already-fired projectiles have independent ownership.
+ ResetCycle();bMovementWasEnabled=MovementEnabled();SettingsChanged();
+ if(Marker) { Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)); }
+}
 void USMAGFEnemyShowcaseComponent::StopNavigation(bool bImmediate)
 {
  bBraking=false;
@@ -168,11 +181,12 @@ void USMAGFEnemyShowcaseComponent::ScheduleRecheck()
 }
 void USMAGFEnemyShowcaseComponent::BeginTelegraph()
 {
+ if(!OffenseEnabled()) { State=ESMAGFEnemyState::Hold;Elapsed=0.f;return; }
  State=ESMAGFEnemyState::Telegraph;Elapsed=0.f;
 }
 void USMAGFEnemyShowcaseComponent::EnterAttack()
 {
- StopNavigation();State=ESMAGFEnemyState::AttackDelay;Elapsed=0.f;
+ StopNavigation();State=OffenseEnabled()?ESMAGFEnemyState::AttackDelay:ESMAGFEnemyState::Hold;Elapsed=0.f;
  if(MovementEnabled()) { ScheduleRecheck(); }
 }
 void USMAGFEnemyShowcaseComponent::EnterPursuit()
@@ -181,6 +195,7 @@ void USMAGFEnemyShowcaseComponent::EnterPursuit()
 }
 void USMAGFEnemyShowcaseComponent::UpdatePursuit(APawn* Player,float Dt)
 {
+ if(!MovementEnabled()) { return; }
  auto* Pawn=Cast<APawn>(GetOwner());auto* Controller=Pawn?Cast<AAIController>(Pawn->GetController()):nullptr;
  if(Controller && Controller->GetMoveStatus()!=EPathFollowingStatus::Idle) { return; }
  RetryRemaining-=Dt;if(RetryRemaining>0.f) { return; }RetryRemaining=.5f;
@@ -203,11 +218,11 @@ void USMAGFEnemyShowcaseComponent::UpdatePursuit(APawn* Player,float Dt)
 void USMAGFEnemyShowcaseComponent::SettingsChanged()
 {
  ApplyMovementTuning();
- const bool Active=Enabled(),Moving=MovementEnabled();SetComponentTickEnabled(Active);
- if(Marker) { Marker->SetVisibility(Active); }
+ const bool Active=Enabled() && DebugMode!=ESMAGFEnemyDebugMode::Passive,Moving=MovementEnabled();SetComponentTickEnabled(Active);
+ if(Marker) { Marker->SetVisibility(OffenseEnabled()); }
  if(Active && !Moving && bMovementWasEnabled) { BeginBraking();State=ESMAGFEnemyState::Idle; }
  else if(!Active || Moving!=bMovementWasEnabled) { ResetCycle(); }
- if(!Active) { GetOwner()->SetActorRotation(BaseRotation); }
+ if(!Enabled()) { GetOwner()->SetActorRotation(BaseRotation); }
  bMovementWasEnabled=Moving;
 }
 void USMAGFEnemyShowcaseComponent::StopForDeath()
@@ -219,7 +234,7 @@ void USMAGFEnemyShowcaseComponent::StopForDeath()
 void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActorComponentTickFunction* Function)
 {
  Super::TickComponent(Dt,Type,Function);
- if(!Enabled() || GetWorld()->IsPaused()) { return; }
+ if(!Enabled() || DebugMode==ESMAGFEnemyDebugMode::Passive || GetWorld()->IsPaused()) { return; }
  APawn* Player=UGameplayStatics::GetPlayerPawn(this,0);const auto S=Showcase->GetSettings();const auto T=S.SmokeAndMirrors;
  const FVector Delta=Player?Player->GetActorLocation()-GetOwner()->GetActorLocation():FVector::ZeroVector;
  const float Distance=Delta.Size2D();
@@ -254,8 +269,8 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    { if(Distance>T.EnemyEngagementRange) { EnterPursuit();UpdatePursuit(Player,Dt); } else { ScheduleRecheck(); } }
   }
   Elapsed+=Dt;
-  if(State==ESMAGFEnemyState::AttackDelay && Elapsed>=.6f+SpawnIndex*.3f) { BeginTelegraph(); }
-  else if(State==ESMAGFEnemyState::Telegraph && Elapsed>=T.EnemyTelegraphDuration)
+  if(OffenseEnabled() && State==ESMAGFEnemyState::AttackDelay && Elapsed>=.6f+SpawnIndex*.3f) { BeginTelegraph(); }
+  else if(OffenseEnabled() && State==ESMAGFEnemyState::Telegraph && Elapsed>=T.EnemyTelegraphDuration)
   {
    const FVector Origin=GetOwner()->GetActorLocation()+GetOwner()->GetActorForwardVector()*FrontOffset;
    FActorSpawnParameters Params;Params.Owner=GetOwner();Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -263,7 +278,7 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    { Projectile->InitializeFlight(Player->GetActorLocation()-Origin,T.EnemyProjectileSpeed);++ShotsFired; }
    State=ESMAGFEnemyState::Cooldown;Elapsed=0.f;
   }
-  else if(State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { BeginTelegraph(); }
+  else if(OffenseEnabled() && State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { BeginTelegraph(); }
  }
  const float Pulse=State==ESMAGFEnemyState::Telegraph?FMath::Clamp(Elapsed/FMath::Max(T.EnemyTelegraphDuration,.001f),0.f,1.f):0.f;
  Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)*(1.f+.3f*Pulse*S.Master.MasterIntensity));

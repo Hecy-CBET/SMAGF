@@ -1,6 +1,7 @@
 #include "Enemy/SMAGFEnemyProjectile.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Feedback/SMAGFReactionComponent.h"
+#include "Feedback/SMAGFFeedbackSubsystem.h"
 #include "SMAGFCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -49,7 +50,13 @@ void ASMAGFEnemyProjectile::OnImpact(UPrimitiveComponent*,AActor* Other,UPrimiti
  const FVector Direction=FlightDirection;
  Movement->StopMovementImmediately();Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
  if(auto* Player=Cast<ASMAGFCharacter>(Other))
- { if(auto* Reaction=Player->FindComponentByClass<USMAGFReactionComponent>()) { Reaction->ReceiveShowcaseHostileHit(Direction); }
+ { if(auto* Reaction=Player->FindComponentByClass<USMAGFReactionComponent>())
+   {
+    const int32 Before = Reaction->GetHostileHitCount();
+    Reaction->ReceiveShowcaseHostileHit(Direction);
+    if (Reaction->GetHostileHitCount() > Before)
+    { if (auto* Feedback=GetWorld()->GetSubsystem<USMAGFFeedbackSubsystem>()) { Feedback->NotifyPlayerHit(); } }
+   }
  }
  Destroy();
 }

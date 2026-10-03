@@ -1,4 +1,6 @@
 #include "Feedback/SMAGFFeedbackSubsystem.h"
+#include "Feedback/SMAGFPresentationPolicy.h"
+#include "SMAGF.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
@@ -26,12 +28,54 @@ void USMAGFFeedbackSubsystem::Deinitialize()
 void USMAGFFeedbackSubsystem::SettingsChanged()
 {
 	if (!Showcase.IsValid() || !Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::HitStop)) { ClearHitStop(); }
+	if (!IsPressureEnabled()) { PresentationPressure = 0.f; LastScale = 1.f; }
 }
 void USMAGFFeedbackSubsystem::NotifyDamagingHit(bool bKilled)
 {
-	if (!Showcase.IsValid()) { return; }
-	const FSMAGFFeelingSettings Settings = Showcase->GetSettings().Feeling;
-	RequestHitStop(bKilled ? Settings.KillHitStopDuration : Settings.HitStopDuration, Settings.HitStopTimeScale);
+	NotifyContact(1.f, bKilled);
+}
+bool USMAGFFeedbackSubsystem::IsPressureEnabled() const
+{
+	return Showcase.IsValid() && Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EventImportanceScaling);
+}
+void USMAGFFeedbackSubsystem::Tick(float DeltaTime)
+{
+	if (!IsPressureEnabled()) { PresentationPressure = 0.f; return; }
+	if (!GetWorld() || GetWorld()->IsPaused() || !FMath::IsFinite(DeltaTime)) { return; }
+	PresentationPressure = SMAGFPresentationPolicy::Decay(PresentationPressure, Showcase->GetSettings().JuiceResponsibly.JuicePressureDecay, DeltaTime);
+}
+void USMAGFFeedbackSubsystem::NotifyContact(float AcceptedDamage, bool bKilled)
+{
+	const bool bDamage = FMath::IsFinite(AcceptedDamage) && AcceptedDamage > 0.f;
+	const auto Importance = bDamage ? (bKilled ? ESMAGFEventImportance::Major : ESMAGFEventImportance::Standard) : ESMAGFEventImportance::Minor;
+	ProcessPresentationEvent(Importance, bDamage ? (bKilled ? TEXT("Kill") : TEXT("EnemyHit")) : TEXT("EnvironmentImpact"), bDamage, bKilled);
+}
+void USMAGFFeedbackSubsystem::NotifyPlayerHit()
+{
+	ProcessPresentationEvent(ESMAGFEventImportance::Major, TEXT("PlayerHit"), false, false);
+}
+void USMAGFFeedbackSubsystem::ProcessPresentationEvent(ESMAGFEventImportance Importance, const TCHAR* Kind, bool bDamage, bool bKilled)
+{
+	if (!Showcase.IsValid() || !GetWorld() || GetWorld()->IsPaused()) { return; }
+	const auto Settings = Showcase->GetSettings();
+	const bool bEnabled = IsPressureEnabled();
+	if (!bEnabled) { PresentationPressure = 0.f; }
+	const float Before = PresentationPressure;
+	const FSMAGFPresentationDecision Decision = bEnabled ? SMAGFPresentationPolicy::Resolve(Before, Settings.JuiceResponsibly, Importance) : FSMAGFPresentationDecision{};
+	LastScale = Decision.Scale;
+	LastImportance = Importance;
+	EventCount = EventCount == MAX_int32 ? 1 : EventCount + 1;
+	LastAuthoredDuration = LastResolvedDuration = 0.f;
+	if (bDamage)
+	{
+		LastAuthoredDuration = bKilled ? Settings.Feeling.KillHitStopDuration : Settings.Feeling.HitStopDuration;
+		LastResolvedDuration = LastAuthoredDuration * Decision.Scale;
+		RequestHitStop(LastResolvedDuration, Settings.Feeling.HitStopTimeScale);
+	}
+	// Commit only after all consumers have received this decision. No consumer resolves again.
+	if (bEnabled) { PresentationPressure = FMath::Clamp(Before + SMAGFPresentationPolicy::Cost(Importance), 0.f, 1.f); }
+	UE_LOG(LogSMAGF, Verbose, TEXT("JUICE_EVENT count=%d game_time=%.6f event_kind=%s importance=%d pressure_before=%.6f scale=%.6f pressure_after=%.6f authored_hitstop=%.6f resolved_hitstop=%.6f"),
+		EventCount, GetWorld()->GetTimeSeconds(), Kind, static_cast<int32>(Importance), Before, Decision.Scale, PresentationPressure, LastAuthoredDuration, LastResolvedDuration);
 }
 int32 USMAGFFeedbackSubsystem::RequestHitStop(float Duration, float TimeScale)
 {

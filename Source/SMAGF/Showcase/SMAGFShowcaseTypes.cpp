@@ -210,10 +210,9 @@ bool FSMAGFJuiceResponsiblySettings::operator==(const FSMAGFJuiceResponsiblySett
 {
 	return bEnabled == Other.bEnabled
 		&& bEventImportanceScalingEnabled == Other.bEventImportanceScalingEnabled
-		&& MinorMultiplier == Other.MinorMultiplier
-		&& NormalMultiplier == Other.NormalMultiplier
-		&& MajorMultiplier == Other.MajorMultiplier
-		&& CriticalMultiplier == Other.CriticalMultiplier;
+		&& JuiceBudgetStrength == Other.JuiceBudgetStrength
+		&& JuicePressureDecay == Other.JuicePressureDecay
+		&& JuiceMinimumScale == Other.JuiceMinimumScale;
 }
 
 bool FSMAGFShowcaseSettings::operator==(const FSMAGFShowcaseSettings& Other) const
@@ -333,25 +332,20 @@ void FSMAGFShowcaseSettings::Validate()
 	Focus.FocusReleaseRadius = ValidFloat(Focus.FocusReleaseRadius, .01f, .75f, Defaults.Focus.FocusReleaseRadius);
 	Focus.FocusSwitchAdvantage = ValidFloat(Focus.FocusSwitchAdvantage, 0.f, .25f, Defaults.Focus.FocusSwitchAdvantage);
 	Focus.FocusReleaseRadius = FMath::Max(Focus.FocusAcquireRadius, Focus.FocusReleaseRadius);
-	JuiceResponsibly.MinorMultiplier = ValidFloat(JuiceResponsibly.MinorMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.MinorMultiplier);
-	JuiceResponsibly.NormalMultiplier = ValidFloat(JuiceResponsibly.NormalMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.NormalMultiplier);
-	JuiceResponsibly.MajorMultiplier = ValidFloat(JuiceResponsibly.MajorMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.MajorMultiplier);
-	JuiceResponsibly.CriticalMultiplier = ValidFloat(JuiceResponsibly.CriticalMultiplier, 0.f, 4.f, Defaults.JuiceResponsibly.CriticalMultiplier);
+	JuiceResponsibly.JuiceBudgetStrength = ValidFloat(JuiceResponsibly.JuiceBudgetStrength, 0.f, 1.f, Defaults.JuiceResponsibly.JuiceBudgetStrength);
+	JuiceResponsibly.JuicePressureDecay = ValidFloat(JuiceResponsibly.JuicePressureDecay, .05f, 10.f, Defaults.JuiceResponsibly.JuicePressureDecay);
+	JuiceResponsibly.JuiceMinimumScale = ValidFloat(JuiceResponsibly.JuiceMinimumScale, 0.f, 1.f, Defaults.JuiceResponsibly.JuiceMinimumScale);
 	if (static_cast<uint8>(Animation.Easing) >= static_cast<uint8>(ESMAGFEasingType::Count))
 	{
 		Animation.Easing = Defaults.Animation.Easing;
 	}
 }
 
-float FSMAGFJuiceResponsiblySettings::ResolveMultiplier(ESMAGFEventImportance Importance) const
+const TArray<ESMAGFShowcasePreset>& SMAGFOrderedPresets()
 {
-	switch (Importance)
-	{
-	case ESMAGFEventImportance::Minor: return MinorMultiplier;
-	case ESMAGFEventImportance::Normal: return NormalMultiplier;
-	case ESMAGFEventImportance::Major: return MajorMultiplier;
-	case ESMAGFEventImportance::Critical: return CriticalMultiplier;
-	default: return 0.f;
-	}
+ static const TArray<ESMAGFShowcasePreset> Order = {
+ ESMAGFShowcasePreset::Baseline, ESMAGFShowcasePreset::Feeling, ESMAGFShowcasePreset::Animation,
+ ESMAGFShowcasePreset::Audiovisual, ESMAGFShowcasePreset::SmokeAndMirrors, ESMAGFShowcasePreset::Focus,
+ ESMAGFShowcasePreset::JuiceResponsibly, ESMAGFShowcasePreset::FullShowcase};
+ return Order;
 }
-

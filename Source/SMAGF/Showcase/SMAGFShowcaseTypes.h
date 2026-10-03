@@ -6,8 +6,11 @@
 UENUM(BlueprintType)
 enum class ESMAGFShowcasePreset : uint8
 {
-	Baseline, Feeling, Animation, Audiovisual, SmokeAndMirrors, Focus, FullShowcase, Custom
+	Baseline = 0, Feeling = 1, Animation = 2, Audiovisual = 3, SmokeAndMirrors = 4, Focus = 5, FullShowcase = 6, Custom = 7, JuiceResponsibly = 8
 };
+
+/** Display and progression order; serialized enum values are stable. */
+SMAGF_API const TArray<ESMAGFShowcasePreset>& SMAGFOrderedPresets();
 
 UENUM(BlueprintType)
 enum class ESMAGFEasingType : uint8
@@ -25,11 +28,10 @@ enum class ESMAGFEasingType : uint8
 UENUM(BlueprintType)
 enum class ESMAGFEventImportance : uint8
 {
-	Minor,
-	Normal,
-	Major,
-	Critical,
-	Count UMETA(Hidden)
+	Minor = 0,
+	Standard = 1,
+	Major = 2,
+	Count = 255 UMETA(Hidden)
 };
 
 UENUM(BlueprintType)
@@ -677,19 +679,28 @@ struct SMAGF_API FSMAGFJuiceResponsiblySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly")
 	bool bEventImportanceScalingEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="4", UIMin="0", UIMax="4"))
-	float MinorMultiplier = 0.5f;
+	// Deprecated serialized fields load old tagged data only; never used by runtime policy.
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Static multipliers retired; use presentation pressure settings."))
+	float MinorMultiplier_DEPRECATED = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="4", UIMin="0", UIMax="4"))
-	float NormalMultiplier = 1.f;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Static multipliers retired; use presentation pressure settings."))
+	float NormalMultiplier_DEPRECATED = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="4", UIMin="0", UIMax="4"))
-	float MajorMultiplier = 1.5f;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Static multipliers retired; use presentation pressure settings."))
+	float MajorMultiplier_DEPRECATED = 1.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="4", UIMin="0", UIMax="4"))
-	float CriticalMultiplier = 2.f;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Static multipliers retired; use presentation pressure settings."))
+	float CriticalMultiplier_DEPRECATED = 2.f;
 
-	float ResolveMultiplier(ESMAGFEventImportance Importance) const;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	float JuiceBudgetStrength = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0.05", ClampMax="10", UIMin="0.05", UIMax="10"))
+	float JuicePressureDecay = 1.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="JuiceResponsibly", meta=(ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	float JuiceMinimumScale = 0.35f;
+
 	bool operator==(const FSMAGFJuiceResponsiblySettings& Other) const;
 };
 

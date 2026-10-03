@@ -3,7 +3,9 @@
 #include "Debug/SMAGFDebugUISettings.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
+#include "Feedback/SMAGFFeedbackSubsystem.h"
 #include "SMAGFPlayerController.h"
+#include "SMAGFGameMode.h"
 #include "Engine/World.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -32,6 +34,7 @@ FText PresetName(ESMAGFShowcasePreset Preset)
 	switch (Preset)
 	{
 	case ESMAGFShowcasePreset::SmokeAndMirrors: return FText::FromString(TEXT("Smoke & Mirrors"));
+	case ESMAGFShowcasePreset::JuiceResponsibly: return FText::FromString(TEXT("Juice Responsibly"));
 	case ESMAGFShowcasePreset::FullShowcase: return FText::FromString(TEXT("Full Showcase"));
 	default: return StaticEnum<ESMAGFShowcasePreset>()->GetDisplayNameTextByValue(static_cast<int64>(Preset));
 	}
@@ -51,11 +54,18 @@ void SSMAGFShowcaseDebugPanel::Construct(const FArguments& Args)
 	TSharedRef<SVerticalBox> Rows = SNew(SVerticalBox);
 	Rows->AddSlot().AutoHeight().Padding(0, 8)[SNew(STextBlock).Text(FText::FromString(TEXT("SMAGF — GAME FEEL LAB")))];
 	Rows->AddSlot().AutoHeight().Padding(0, 4)[SNew(STextBlock).Text(this, &SSMAGFShowcaseDebugPanel::PresetText)];
+	Rows->AddSlot().AutoHeight().Padding(0, 4)[SNew(STextBlock).Text_Lambda([this]()
+	{
+		const auto* World = Controller.IsValid() ? Controller->GetWorld() : nullptr;
+		const auto* Mode = World ? World->GetAuthGameMode<ASMAGFGameMode>() : nullptr;
+		return FText::Format(FText::FromString(TEXT("Enemy Mode: {0} (Ctrl+G)")), Mode
+			? StaticEnum<ESMAGFEnemyDebugMode>()->GetDisplayNameTextByValue(static_cast<int64>(Mode->GetEnemyDebugMode()))
+			: FText::FromString(TEXT("Unavailable")));
+	})];
 	Rows->AddSlot().AutoHeight().Padding(0, 4)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("Ctrl+F closes; PageUp/PageDown change layers. Expand a group to tune its features.")))];
 	TSharedRef<SWrapBox> Presets = SNew(SWrapBox).UseAllottedSize(true);
-	for (uint8 Index = 0; Index <= static_cast<uint8>(ESMAGFShowcasePreset::FullShowcase); ++Index)
+	for (const ESMAGFShowcasePreset Preset : SMAGFOrderedPresets())
 	{
-		const ESMAGFShowcasePreset Preset = static_cast<ESMAGFShowcasePreset>(Index);
 		Presets->AddSlot().Padding(2)[SNew(SButton).Text(PresetName(Preset))
 			.OnClicked_Lambda([this, Preset]() { if (Subsystem.IsValid()) { Subsystem->SetShowcasePreset(Preset); } return FReply::Handled(); })];
 	}
@@ -361,9 +371,18 @@ GroupRows->AddSlot().AutoHeight().Padding(0, 6)[SNew(SComboButton)
 	AddNumber<float>(GroupRows, TEXT("Focus Switch Advantage (viewport fraction)"), 0.f, .25f, [](const FSMAGFShowcaseSettings& S) { return S.Focus.FocusSwitchAdvantage; }, [](FSMAGFShowcaseSettings& S, float V) { S.Focus.FocusSwitchAdvantage = V; });
 	GroupRows = AddGroup(Rows, TEXT("Juice Responsibly"), ESMAGFShowcaseGroup::JuiceResponsibly);
 	AddBool(GroupRows, TEXT("Group Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.bEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.JuiceResponsibly.bEnabled = V; });
-	AddBool(GroupRows, TEXT("Event Importance Scaling Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.bEventImportanceScalingEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.JuiceResponsibly.bEventImportanceScalingEnabled = V; });
-	AddNumber<float>(GroupRows, TEXT("Minor Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.MinorMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.MinorMultiplier = V; });
-	AddNumber<float>(GroupRows, TEXT("Normal Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.NormalMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.NormalMultiplier = V; });
-	AddNumber<float>(GroupRows, TEXT("Major Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.MajorMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.MajorMultiplier = V; });
-	AddNumber<float>(GroupRows, TEXT("Critical Multiplier"), 0.0f, 4.0f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.CriticalMultiplier; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.CriticalMultiplier = V; });
+	AddBool(GroupRows, TEXT("Presentation Pressure Enabled"), [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.bEventImportanceScalingEnabled; }, [](FSMAGFShowcaseSettings& S, bool V) { S.JuiceResponsibly.bEventImportanceScalingEnabled = V; });
+	AddNumber<float>(GroupRows, TEXT("Budget Strength"), 0.f, 1.f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.JuiceBudgetStrength; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.JuiceBudgetStrength = V; });
+	AddNumber<float>(GroupRows, TEXT("Pressure Decay"), .05f, 10.f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.JuicePressureDecay; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.JuicePressureDecay = V; });
+	AddNumber<float>(GroupRows, TEXT("Minimum Response Scale"), 0.f, 1.f, [](const FSMAGFShowcaseSettings& S) { return S.JuiceResponsibly.JuiceMinimumScale; }, [](FSMAGFShowcaseSettings& S, float V) { S.JuiceResponsibly.JuiceMinimumScale = V; });
+	GroupRows->AddSlot().AutoHeight().Padding(0, 4)
+	[SNew(STextBlock).Text_Lambda([this]()
+	{
+		const auto* World = Subsystem.IsValid() ? Subsystem->GetWorld() : nullptr;
+		const auto* Feedback = World ? World->GetSubsystem<USMAGFFeedbackSubsystem>() : nullptr;
+		if (!Feedback) { return FText::FromString(TEXT("Presentation pressure: unavailable")); }
+		return FText::FromString(FString::Printf(TEXT("Presentation pressure: %.3f | Last scale: %.3f | Last importance: %s"),
+			Feedback->GetPresentationPressure(), Feedback->GetLastPresentationScale(),
+			*StaticEnum<ESMAGFEventImportance>()->GetNameStringByValue(static_cast<int64>(Feedback->GetLastImportance()))));
+	})];
 }

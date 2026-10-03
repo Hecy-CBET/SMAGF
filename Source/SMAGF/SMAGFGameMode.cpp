@@ -6,6 +6,31 @@
 #include "SMAGFPlayerController.h"
 #include "Targets/SMAGFTarget.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+
+void ASMAGFGameMode::CycleEnemyDebugMode()
+{
+	switch (EnemyDebugMode)
+	{
+	case ESMAGFEnemyDebugMode::Aggressive: SetEnemyDebugMode(ESMAGFEnemyDebugMode::Calm); break;
+	case ESMAGFEnemyDebugMode::Calm: SetEnemyDebugMode(ESMAGFEnemyDebugMode::Passive); break;
+	case ESMAGFEnemyDebugMode::Passive: SetEnemyDebugMode(ESMAGFEnemyDebugMode::Aggressive); break;
+	}
+}
+
+void ASMAGFGameMode::SetEnemyDebugMode(ESMAGFEnemyDebugMode NewMode)
+{
+	if (NewMode != ESMAGFEnemyDebugMode::Aggressive && NewMode != ESMAGFEnemyDebugMode::Calm
+		&& NewMode != ESMAGFEnemyDebugMode::Passive) { return; }
+	if (EnemyDebugMode == NewMode) { return; }
+	EnemyDebugMode = NewMode;
+	for (TActorIterator<ASMAGFTarget> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsAliveForFocus()) { continue; }
+		if (auto* Behavior = It->FindComponentByClass<USMAGFEnemyShowcaseComponent>())
+		{ Behavior->ApplyDebugBehaviorMode(NewMode); }
+	}
+}
 
 ASMAGFGameMode::ASMAGFGameMode()
 {
