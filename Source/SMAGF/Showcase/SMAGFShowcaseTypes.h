@@ -273,7 +273,7 @@ struct SMAGF_API FSMAGFAnimationSettings
 	float WobbleAmount = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0", ClampMax="30", UIMin="0", UIMax="30"))
-	float WobbleFrequency = 5.f;
+	float WobbleFrequency = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0", ClampMax="5", UIMin="0", UIMax="5"))
 	float ReactionDuration = 0.15f;
@@ -434,16 +434,16 @@ struct SMAGF_API FSMAGFCameraSettings
 	float ShakeRotationAmplitude = 0.4f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="100", UIMin="0", UIMax="100"))
-	float ShakeFrequency = 20.f;
+	float ShakeFrequency = 5.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="5", UIMin="0", UIMax="5"))
 	float ShakeDuration = 0.15f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="10", UIMin="0", UIMax="10"))
-	float ShakeFalloff = 1.f;
+	float ShakeFalloff = 2.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="100", UIMin="0", UIMax="100"))
-	float CameraKickDistance = 5.f;
+	float CameraKickDistance = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera", meta=(ClampMin="0", ClampMax="30", UIMin="0", UIMax="30"))
 	float CameraKickRotation = 1.f;
