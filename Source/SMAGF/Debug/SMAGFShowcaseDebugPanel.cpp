@@ -62,7 +62,7 @@ void SSMAGFShowcaseDebugPanel::Construct(const FArguments& Args)
 			? StaticEnum<ESMAGFEnemyDebugMode>()->GetDisplayNameTextByValue(static_cast<int64>(Mode->GetEnemyDebugMode()))
 			: FText::FromString(TEXT("Unavailable")));
 	})];
-	Rows->AddSlot().AutoHeight().Padding(0, 4)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("Ctrl+F closes; PageUp/PageDown change layers. Expand a group to tune its features.")))];
+	Rows->AddSlot().AutoHeight().Padding(0, 4)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("Ctrl+F closes; Ctrl+T restores missing enemies; PageUp/PageDown or [ / ] change layers. Expand a group to tune its features.")))];
 	TSharedRef<SWrapBox> Presets = SNew(SWrapBox).UseAllottedSize(true);
 	for (const ESMAGFShowcasePreset Preset : SMAGFOrderedPresets())
 	{
@@ -146,7 +146,7 @@ FReply SSMAGFShowcaseDebugPanel::OnPreviewKeyDown(const FGeometry& Geometry, con
 	{
 		return FReply::Handled();
 	}
-	if (Key == EKeys::PageUp || Key == EKeys::PageDown || Key == EKeys::Home || Key == EKeys::End)
+	if (Key == EKeys::PageUp || Key == EKeys::PageDown || Key == EKeys::LeftBracket || Key == EKeys::RightBracket || Key == EKeys::Home || Key == EKeys::End)
 	{
 		if (!Event.IsRepeat() && Controller.IsValid()) { Controller->HandleShowcaseKey(Key); }
 		return FReply::Handled();

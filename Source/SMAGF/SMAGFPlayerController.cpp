@@ -100,6 +100,8 @@ void ASMAGFPlayerController::SetupInputComponent()
 	SetInputMode(Mode);
 	InputComponent->BindKey(EKeys::PageUp, IE_Pressed, this, &ASMAGFPlayerController::PreviousShowcaseLayer);
 	InputComponent->BindKey(EKeys::PageDown, IE_Pressed, this, &ASMAGFPlayerController::NextShowcaseLayer);
+	InputComponent->BindKey(EKeys::LeftBracket, IE_Pressed, this, &ASMAGFPlayerController::PreviousShowcaseLayer);
+	InputComponent->BindKey(EKeys::RightBracket, IE_Pressed, this, &ASMAGFPlayerController::NextShowcaseLayer);
 	InputComponent->BindKey(EKeys::Home, IE_Pressed, this, &ASMAGFPlayerController::BaselineShowcaseLayer);
 	InputComponent->BindKey(EKeys::End, IE_Pressed, this, &ASMAGFPlayerController::FullShowcaseLayer);
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
@@ -332,8 +334,8 @@ bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
 {
 	USMAGFShowcaseSubsystem* Subsystem = GetWorld() ? GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>() : nullptr;
 	if (!Subsystem) { return false; }
-	if (Key == EKeys::PageUp) { Subsystem->PreviousShowcasePreset(); }
-	else if (Key == EKeys::PageDown) { Subsystem->NextShowcasePreset(); }
+	if (Key == EKeys::PageUp || Key == EKeys::LeftBracket) { Subsystem->PreviousShowcasePreset(); }
+	else if (Key == EKeys::PageDown || Key == EKeys::RightBracket) { Subsystem->NextShowcasePreset(); }
 	else if (Key == EKeys::Home) { Subsystem->SetShowcasePreset(ESMAGFShowcasePreset::Baseline); }
 	else if (Key == EKeys::End) { Subsystem->SetShowcasePreset(ESMAGFShowcasePreset::FullShowcase); }
 	else { return false; }
@@ -342,7 +344,7 @@ bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
 
 bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 {
-	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G)
+	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G || EventArgs.Key == EKeys::T)
 		&& (EventArgs.Event == IE_Pressed || EventArgs.Event == IE_Repeat))
 	{
 		const bool bControlDown = FSlateApplication::IsInitialized()
@@ -358,7 +360,7 @@ bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 
 bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat)
 {
-	if (Key == EKeys::G && bControlDown)
+	if ((Key == EKeys::G || Key == EKeys::T) && bControlDown)
 	{
 		if (FSlateApplication::IsInitialized())
 		{
@@ -367,7 +369,11 @@ bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown
 		}
 		if (!bIsRepeat && GetWorld())
 		{
-			if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>()) { Mode->CycleEnemyDebugMode(); }
+			if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>())
+			{
+				if (Key == EKeys::G) { Mode->CycleEnemyDebugMode(); }
+				else { Mode->RestoreShowcaseEnemies(); }
+			}
 		}
 		return true;
 	}

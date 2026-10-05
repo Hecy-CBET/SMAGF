@@ -7,6 +7,8 @@
 #include "Targets/SMAGFTarget.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Combat/SMAGFHealthComponent.h"
+#include "Showcase/SMAGFShowcaseSubsystem.h"
 
 void ASMAGFGameMode::CycleEnemyDebugMode()
 {
@@ -41,6 +43,9 @@ ASMAGFGameMode::ASMAGFGameMode()
 void ASMAGFGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	Showcase = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
+	if (Showcase.IsValid())
+	{ PresetChangedHandle = Showcase->OnPresetChangedNative.AddUObject(this, &ThisClass::ShowcasePresetChanged); }
 	if (GetWorld()->IsGameWorld() && !IsValid(ShowcaseDirector))
 	{ ShowcaseDirector=GetWorld()->SpawnActor<ASMAGFShowcaseDirector>(); }
 	// Flat platforms: the previous 650 cm offsets landed on the sloped ramps.
@@ -48,9 +53,10 @@ void ASMAGFGameMode::BeginPlay()
 	const FVector Extent = ASMAGFTarget::GetCollisionExtent();
 	FCollisionQueryParams Query(SCENE_QUERY_STAT(SMAGFTargetGround), false);
 	const FCollisionObjectQueryParams GroundObjects(ECC_WorldStatic);
-	int32 SpawnIndex=0;
-	for (const FVector2D& XY : Positions)
+	SpawnSlots.SetNum(UE_ARRAY_COUNT(Positions));
+	for (int32 SlotIndex = 0; SlotIndex < SpawnSlots.Num(); ++SlotIndex)
 	{
+		const FVector2D& XY = Positions[SlotIndex];
 		FHitResult Ground;
 		if (!GetWorld()->LineTraceSingleByObjectType(Ground, FVector(XY.X, XY.Y, 2000.f),
 			FVector(XY.X, XY.Y, -2000.f), GroundObjects, Query) || Ground.ImpactNormal.Z < 0.9f)
@@ -74,19 +80,103 @@ void ASMAGFGameMode::BeginPlay()
 			}
 		}
 		const FVector Location(XY.X, XY.Y, Ground.ImpactPoint.Z + Extent.Z + 2.f);
+		if (bSupported)
+		{
+			SpawnSlots[SlotIndex].OriginalTransform = FTransform(FRotator::ZeroRotator, Location);
+			SpawnSlots[SlotIndex].bHasTransform = true;
+		}
 		if (!bSupported || GetWorld()->OverlapBlockingTestByChannel(Location, FQuat::Identity,
 			ECC_WorldDynamic, FCollisionShape::MakeBox(Extent), Query))
 		{
 			UE_LOG(LogSMAGF, Warning, TEXT("Skipping target at %s: unsupported or obstructed."), *XY.ToString());
 			continue;
 		}
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
-		if (ASMAGFTarget* Target = GetWorld()->SpawnActor<ASMAGFTarget>(Location, FRotator::ZeroRotator, Params))
+		if (SpawnShowcaseEnemy(SlotIndex, true))
 		{
-			Target->FindComponentByClass<USMAGFEnemyShowcaseComponent>()->SetSpawnIndex(SpawnIndex++);
 			UE_LOG(LogSMAGF, Log, TEXT("Baseline target %s at %s (ground Z %.1f)."),
-				*Target->GetName(), *Location.ToString(), Ground.ImpactPoint.Z);
+				*SpawnSlots[SlotIndex].Enemy->GetName(), *Location.ToString(), Ground.ImpactPoint.Z);
 		}
 	}
+}
+
+bool ASMAGFGameMode::IsFullShowcaseActive() const
+{
+	return !bEndingPlay && Showcase.IsValid()
+		&& Showcase->GetShowcasePreset() == ESMAGFShowcasePreset::FullShowcase;
+}
+
+bool ASMAGFGameMode::SpawnShowcaseEnemy(int32 SlotIndex, bool bInitialSpawn)
+{
+	if (bEndingPlay || !SpawnSlots.IsValidIndex(SlotIndex)) { return false; }
+	auto& Slot = SpawnSlots[SlotIndex];
+	if (!Slot.bHasTransform || (Slot.Enemy.IsValid() && Slot.Enemy->IsAliveForFocus())) { return false; }
+	FActorSpawnParameters Params;
+	// Replacement must use the original transform; presentation debris or a pawn
+	// crossing the slot must not adjust it or silently consume the replacement.
+	Params.SpawnCollisionHandlingOverride = bInitialSpawn
+		? ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding
+		: ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ASMAGFTarget* Target = GetWorld()->SpawnActor<ASMAGFTarget>(
+		ASMAGFTarget::StaticClass(), Slot.OriginalTransform, Params);
+	if (!Target) { return false; }
+	Slot.Enemy = Target;
+	Target->FindComponentByClass<USMAGFEnemyShowcaseComponent>()->SetSpawnIndex(SlotIndex);
+	Target->OnDestroyed.AddDynamic(this, &ThisClass::ShowcaseEnemyDestroyed);
+	return true;
+}
+
+void ASMAGFGameMode::ShowcaseEnemyDestroyed(AActor* DestroyedActor)
+{
+	if (bEndingPlay) { return; }
+	for (int32 Index = 0; Index < SpawnSlots.Num(); ++Index)
+	{
+		auto& Slot = SpawnSlots[Index];
+		// OnDestroyed runs while the actor is pending destruction.
+		if (Slot.Enemy.Get(true) != DestroyedActor) { continue; }
+		Slot.Enemy.Reset();
+		GetWorldTimerManager().ClearTimer(Slot.RespawnTimer);
+		const auto* Health = DestroyedActor->FindComponentByClass<USMAGFHealthComponent>();
+		if (Health && Health->CurrentHealth <= 0.f && IsFullShowcaseActive())
+		{
+			constexpr float ShowcaseRespawnDelay = 2.f;
+			GetWorldTimerManager().SetTimer(Slot.RespawnTimer,
+				FTimerDelegate::CreateWeakLambda(this, [this, Index]()
+				{
+					if (IsFullShowcaseActive()) { SpawnShowcaseEnemy(Index); }
+				}), ShowcaseRespawnDelay, false);
+		}
+		return;
+	}
+}
+
+void ASMAGFGameMode::ShowcasePresetChanged()
+{
+	if (IsFullShowcaseActive()) { return; }
+	for (auto& Slot : SpawnSlots) { GetWorldTimerManager().ClearTimer(Slot.RespawnTimer); }
+}
+
+int32 ASMAGFGameMode::RestoreShowcaseEnemies()
+{
+	if (bEndingPlay) { return 0; }
+	int32 Restored = 0;
+	for (int32 Index = 0; Index < SpawnSlots.Num(); ++Index)
+	{
+		auto& Slot = SpawnSlots[Index];
+		if (Slot.Enemy.IsValid() && Slot.Enemy->IsAliveForFocus()) { continue; }
+		GetWorldTimerManager().ClearTimer(Slot.RespawnTimer);
+		if (SpawnShowcaseEnemy(Index)) { ++Restored; }
+	}
+	return Restored;
+}
+
+void ASMAGFGameMode::EndPlay(const EEndPlayReason::Type Reason)
+{
+	bEndingPlay = true;
+	for (auto& Slot : SpawnSlots)
+	{
+		GetWorldTimerManager().ClearTimer(Slot.RespawnTimer);
+		if (Slot.Enemy.IsValid()) { Slot.Enemy->OnDestroyed.RemoveDynamic(this, &ThisClass::ShowcaseEnemyDestroyed); }
+	}
+	if (Showcase.IsValid()) { Showcase->OnPresetChangedNative.Remove(PresetChangedHandle); }
+	Super::EndPlay(Reason);
 }
