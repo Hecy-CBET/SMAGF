@@ -12,6 +12,10 @@ class SMAGF_API ASMAGFGameMode : public AGameModeBase
 	GENERATED_BODY()
 public:
 	ASMAGFGameMode();
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror")
+	bool bHorrorMode = false;
+	UFUNCTION(BlueprintPure, Category="SMAGF|Horror")
+	bool IsHorrorMode() const { return bHorrorMode; }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
 	ESMAGFEnemyDebugMode GetEnemyDebugMode() const { return EnemyDebugMode; }
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")

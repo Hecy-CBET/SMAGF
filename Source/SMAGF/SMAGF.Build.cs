@@ -26,7 +26,7 @@ public class SMAGF : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore" });
-		if (Target.bBuildEditor) { PrivateDependencyModuleNames.Add("NiagaraEditor"); }
+		if (Target.bBuildEditor) { PrivateDependencyModuleNames.AddRange(new string[] { "NiagaraEditor", "UnrealEd" }); }
 
 		PublicIncludePaths.AddRange(new string[] {
 			"SMAGF",
