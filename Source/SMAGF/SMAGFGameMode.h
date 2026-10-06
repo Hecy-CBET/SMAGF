@@ -38,7 +38,7 @@ private:
 	FDelegateHandle PresetChangedHandle;
 	bool bEndingPlay = false;
 	bool SpawnShowcaseEnemy(int32 SlotIndex, bool bInitialSpawn = false);
-	bool IsFullShowcaseActive() const;
+	bool IsAutomaticRespawnEligible() const;
 	void ShowcasePresetChanged();
 	UFUNCTION() void ShowcaseEnemyDestroyed(AActor* DestroyedActor);
 	UPROPERTY(Transient) ESMAGFEnemyDebugMode EnemyDebugMode = ESMAGFEnemyDebugMode::Aggressive;

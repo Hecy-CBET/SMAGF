@@ -99,10 +99,10 @@ void ASMAGFGameMode::BeginPlay()
 	}
 }
 
-bool ASMAGFGameMode::IsFullShowcaseActive() const
+bool ASMAGFGameMode::IsAutomaticRespawnEligible() const
 {
-	return !bEndingPlay && Showcase.IsValid()
-		&& Showcase->GetShowcasePreset() == ESMAGFShowcasePreset::FullShowcase;
+	return !bEndingPlay && (IsHorrorMode() || (Showcase.IsValid()
+		&& Showcase->GetShowcasePreset() == ESMAGFShowcasePreset::FullShowcase));
 }
 
 bool ASMAGFGameMode::SpawnShowcaseEnemy(int32 SlotIndex, bool bInitialSpawn)
@@ -136,13 +136,13 @@ void ASMAGFGameMode::ShowcaseEnemyDestroyed(AActor* DestroyedActor)
 		Slot.Enemy.Reset();
 		GetWorldTimerManager().ClearTimer(Slot.RespawnTimer);
 		const auto* Health = DestroyedActor->FindComponentByClass<USMAGFHealthComponent>();
-		if (Health && Health->CurrentHealth <= 0.f && IsFullShowcaseActive())
+		if (Health && Health->CurrentHealth <= 0.f && IsAutomaticRespawnEligible())
 		{
 			constexpr float ShowcaseRespawnDelay = 2.f;
 			GetWorldTimerManager().SetTimer(Slot.RespawnTimer,
 				FTimerDelegate::CreateWeakLambda(this, [this, Index]()
 				{
-					if (IsFullShowcaseActive()) { SpawnShowcaseEnemy(Index); }
+					if (IsAutomaticRespawnEligible()) { SpawnShowcaseEnemy(Index); }
 				}), ShowcaseRespawnDelay, false);
 		}
 		return;
@@ -151,7 +151,7 @@ void ASMAGFGameMode::ShowcaseEnemyDestroyed(AActor* DestroyedActor)
 
 void ASMAGFGameMode::ShowcasePresetChanged()
 {
-	if (IsFullShowcaseActive()) { return; }
+	if (IsAutomaticRespawnEligible()) { return; }
 	for (auto& Slot : SpawnSlots) { GetWorldTimerManager().ClearTimer(Slot.RespawnTimer); }
 }
 

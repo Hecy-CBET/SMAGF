@@ -39,6 +39,7 @@ public:
 	FSMAGFShowcaseNativeChanged OnSettingsChangedNative;
 	FSMAGFShowcaseNativeChanged OnPresetChangedNative;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintPure, Category="SMAGF|Showcase")

@@ -1,5 +1,7 @@
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Showcase/SMAGFShowcaseDeveloperSettings.h"
+#include "SMAGFGameMode.h"
+#include "Engine/World.h"
 
 bool USMAGFShowcaseSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -13,6 +15,14 @@ void USMAGFShowcaseSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	StartupDefaults.Validate();
 	// Phase 3 deliberately starts in Baseline without changing authored defaults.
 	Settings = ResolvePreset(ESMAGFShowcasePreset::Baseline);
+}
+
+void USMAGFShowcaseSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	Super::OnWorldBeginPlay(InWorld);
+	// World subsystems receive this before GameMode::StartPlay dispatches actor BeginPlay.
+	const auto* Mode = InWorld.GetAuthGameMode<ASMAGFGameMode>();
+	if (Mode && Mode->IsHorrorMode()) { SetShowcasePreset(ESMAGFShowcasePreset::FullShowcase); }
 }
 
 void USMAGFShowcaseSubsystem::Deinitialize()

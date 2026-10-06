@@ -161,7 +161,8 @@ void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ASMAGFPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	if (IsLocalController() && GetWorld()->GetGameViewport() && FSlateApplication::IsInitialized())
+	const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
+	if ((!Mode || !Mode->IsHorrorMode()) && IsLocalController() && GetWorld()->GetGameViewport() && FSlateApplication::IsInitialized())
 	{
 		LayerIndicator=SNew(SSMAGFShowcaseLayerIndicator).Subsystem(GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>());
 		GetWorld()->GetGameViewport()->AddViewportWidgetContent(LayerIndicator.ToSharedRef(),10);
@@ -282,6 +283,8 @@ void ASMAGFPlayerController::UpdateAim()
 
 void ASMAGFPlayerController::ToggleShowcasePanel()
 {
+	const auto* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ASMAGFGameMode>() : nullptr;
+	if (GameMode && GameMode->IsHorrorMode()) { RemoveShowcasePanel(true); return; }
 	if (IsShowcasePanelOpen()) { CloseShowcasePanel(); return; }
 	if (!IsLocalController() || !GetWorld() || !FSlateApplication::IsInitialized()) { return; }
 	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
