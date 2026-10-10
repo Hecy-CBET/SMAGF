@@ -20,6 +20,23 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror")
 	TSubclassOf<AActor> HorrorFlashlightClass = nullptr;
 	TSubclassOf<AActor> GetHorrorFlashlightClass() const { return HorrorFlashlightClass; }
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(Units="cm"))
+	FVector HorrorFlashlightFirstPersonViewOffset = FVector(0.f,12.f,-10.f);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="1", ClampMax="10000", Units="cm"))
+	float HorrorFlashlightConvergenceDistance = 500.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0", ClampMax="10000"))
+	float HorrorFlashlightLeadAngularSpeedThreshold = 25.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0", ClampMax="1", Units="s"))
+	float HorrorFlashlightLeadTime = .035f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0", ClampMax="45"))
+	float HorrorFlashlightMaxLeadYaw = 6.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0", ClampMax="45"))
+	float HorrorFlashlightMaxLeadPitch = 4.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0.01", ClampMax="100"))
+	float HorrorFlashlightLeadInterpSpeed = 12.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0.01", ClampMax="100"))
+	float HorrorFlashlightReturnInterpSpeed = 6.f;
+
 	UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
 	ESMAGFEnemyDebugMode GetEnemyDebugMode() const { return EnemyDebugMode; }
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")

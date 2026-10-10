@@ -20,7 +20,13 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	/** Called once controller startup/possession has established the perspective. */
 	void InitializeHorrorFlashlight();
-	void UpdateFlashlightTransform(const FRotator& ViewRotation);
+	void UpdateFlashlightTransform(const FVector& Location, const FRotator& ViewRotation);
+	UFUNCTION(BlueprintPure, Category="SMAGF|Horror")
+	bool IsFlashlightEnabled() const;
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Horror")
+	void SetFlashlightEnabled(bool bEnabled);
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Horror")
+	void ToggleFlashlight();
 	AActor* GetHorrorFlashlight() const { return HorrorFlashlight.Get(); }
 	void MoveInCameraPlane(const FVector2D& Intent);
 	void ApplyAimDirection(const FVector& Direction);
@@ -33,6 +39,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> HorrorFlashlight;
 	bool bFlashlightInitializationAttempted = false;
+	UPROPERTY(Transient) bool bFlashlightEnabled = true;
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<USMAGFReactionComponent> Reaction;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))

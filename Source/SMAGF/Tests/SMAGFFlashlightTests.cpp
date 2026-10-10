@@ -21,6 +21,10 @@ struct FSMAGFFlashlightFixture
 			if (APawn* Pawn = Player->GetPawn()) { Pawn->Destroy(); }
 			Mode->RestartPlayer(Player);
 		}
+		else if (Args[0] == TEXT("press") || Args[0] == TEXT("repeat") || Args[0] == TEXT("ctrl"))
+		{
+			Player->HandleShowcaseToggleKey(EKeys::F, Args[0] == TEXT("ctrl"), Args[0] == TEXT("repeat"));
+		}
 		else if (Args[0] == TEXT("aim") && !Player->IsFirstPersonPerspective())
 		{
 			Player->LastTopDownAimPoint = FVector(500.f, 400.f, 0.f);
@@ -36,6 +40,6 @@ struct FSMAGFFlashlightFixture
 };
 
 static FAutoConsoleCommandWithWorldAndArgs GFlashlightFixture(
-	TEXT("SMAGF.TestFlashlight"), TEXT("Editor development fixture: configured, null, aim, repossess."),
+	TEXT("SMAGF.TestFlashlight"), TEXT("Editor development fixture: configured, null, aim, repossess, press, repeat, ctrl."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FSMAGFFlashlightFixture::Run));
 #endif

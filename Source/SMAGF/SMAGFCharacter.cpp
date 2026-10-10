@@ -96,7 +96,7 @@ void ASMAGFCharacter::InitializeHorrorFlashlight()
 	bFlashlightInitializationAttempted = true;
 	if (!Mode->IsHorrorMode()) { return; }
 	const TSubclassOf<AActor> FlashlightClass = Mode->GetHorrorFlashlightClass();
-	if (!FlashlightClass) { return; } // Intentionally unbound until the MCP asset pass.
+	if (!FlashlightClass) { return; } // An unconfigured Horror class is a safe no-op.
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
@@ -105,6 +105,7 @@ void ASMAGFCharacter::InitializeHorrorFlashlight()
 	HorrorFlashlight = GetWorld()->SpawnActor<AActor>(FlashlightClass, GetPawnViewLocation(), FRotator::ZeroRotator, Params);
 	if (IsValid(HorrorFlashlight))
 	{
+		HorrorFlashlight->SetActorHiddenInGame(!bFlashlightEnabled);
 		if (!HorrorFlashlight->GetRootComponent() || !HorrorFlashlight->AttachToComponent(
 			FlashlightAnchor, FAttachmentTransformRules::SnapToTargetIncludingScale))
 		{
@@ -114,10 +115,10 @@ void ASMAGFCharacter::InitializeHorrorFlashlight()
 	}
 }
 
-void ASMAGFCharacter::UpdateFlashlightTransform(const FRotator& ViewRotation)
+void ASMAGFCharacter::UpdateFlashlightTransform(const FVector& Location, const FRotator& ViewRotation)
 {
-	if (!IsValid(HorrorFlashlight) || ViewRotation.ContainsNaN()) { return; }
-	FlashlightAnchor->SetWorldLocationAndRotation(GetPawnViewLocation(), FRotator(ViewRotation.Pitch, ViewRotation.Yaw, 0.f));
+	if (!IsValid(HorrorFlashlight) || Location.ContainsNaN() || ViewRotation.ContainsNaN()) { return; }
+	FlashlightAnchor->SetWorldLocationAndRotation(Location, FRotator(ViewRotation.Pitch, ViewRotation.Yaw, 0.f));
 }
 
 void ASMAGFCharacter::EndPlay(const EEndPlayReason::Type Reason)
@@ -125,4 +126,21 @@ void ASMAGFCharacter::EndPlay(const EEndPlayReason::Type Reason)
 	if (IsValid(HorrorFlashlight)) { HorrorFlashlight->Destroy(); }
 	HorrorFlashlight = nullptr;
 	Super::EndPlay(Reason);
+}
+
+bool ASMAGFCharacter::IsFlashlightEnabled() const
+{
+	return IsValid(HorrorFlashlight) && bFlashlightEnabled;
+}
+
+void ASMAGFCharacter::SetFlashlightEnabled(bool bEnabled)
+{
+	if (!IsValid(HorrorFlashlight)) { return; }
+	bFlashlightEnabled = bEnabled;
+	HorrorFlashlight->SetActorHiddenInGame(!bEnabled);
+}
+
+void ASMAGFCharacter::ToggleFlashlight()
+{
+	SetFlashlightEnabled(!IsFlashlightEnabled());
 }

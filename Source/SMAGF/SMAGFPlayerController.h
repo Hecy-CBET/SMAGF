@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Horror/SMAGFFlashlightMotion.h"
 #include "SMAGFPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -75,8 +76,9 @@ private:
 	void OnFireStarted();
 	void OnFireReleased();
 	void CancelHeldInput();
-	void UpdateAim();
-	void UpdateFlashlight();
+	void UpdateAim(float DeltaTime = 0.f);
+	void UpdateFlashlight(float DeltaTime = 0.f);
+	FSMAGFFlashlightMotion FlashlightMotion;
 	FVector LastTopDownAimPoint = FVector::ZeroVector;
 	bool bHasTopDownAimPoint = false;
 

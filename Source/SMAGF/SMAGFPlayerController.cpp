@@ -124,6 +124,7 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 {
 	CancelHeldInput();
 	Super::OnPossess(InPawn);
+	FlashlightMotion.Reset();
 	LastAimDirection = InPawn->GetActorForwardVector().GetSafeNormal2D();
 	bHasTopDownAimPoint = false;
 	CreateInputObjects();
@@ -144,6 +145,7 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 
 void ASMAGFPlayerController::OnUnPossess()
 {
+	FlashlightMotion.Reset();
 	RemoveShowcasePanel(true);
 	CancelHeldInput();
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
@@ -171,6 +173,7 @@ void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ASMAGFPlayerController::BeginPlay()
 {
+	FlashlightMotion.Reset();
 	Super::BeginPlay();
 	const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
 	SetPlayerPerspective(Mode && Mode->IsHorrorMode() ? ESMAGFPlayerPerspective::FirstPerson : ESMAGFPlayerPerspective::TopDown);
@@ -259,7 +262,7 @@ void ASMAGFPlayerController::PlayerTick(float DeltaTime)
 	if (IsShowcasePanelOpen()) { return; }
 	if (IsLocalController())
 	{
-		UpdateAim();
+		UpdateAim(DeltaTime);
 		if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
 		{
 			ControlledCharacter->MoveInCameraPlane(MoveIntent);
@@ -267,7 +270,7 @@ void ASMAGFPlayerController::PlayerTick(float DeltaTime)
 	}
 }
 
-void ASMAGFPlayerController::UpdateAim()
+void ASMAGFPlayerController::UpdateAim(float DeltaTime)
 {
 	ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn());
 	if (!ControlledCharacter)
@@ -279,7 +282,7 @@ void ASMAGFPlayerController::UpdateAim()
 		LastAimDirection = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
 		ControlledCharacter->ApplyAimDirection(LastAimDirection);
 		bHasTopDownAimPoint = false;
-		UpdateFlashlight();
+		UpdateFlashlight(DeltaTime);
 		return;
 	}
 	bHasTopDownAimPoint = false;
@@ -307,7 +310,7 @@ void ASMAGFPlayerController::UpdateAim()
 		}
 	}
 	ControlledCharacter->ApplyAimDirection(LastAimDirection);
-	UpdateFlashlight();
+	UpdateFlashlight(DeltaTime);
 }
 
 void ASMAGFPlayerController::ToggleShowcasePanel()
@@ -387,6 +390,20 @@ bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 
 bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat)
 {
+	if (Key == EKeys::F && !bControlDown)
+	{
+		if (FSlateApplication::IsInitialized())
+		{
+			const auto Modifiers = FSlateApplication::Get().GetModifierKeys();
+			const auto Focused = FSlateApplication::Get().GetKeyboardFocusedWidget();
+			if (Modifiers.IsAltDown() || Modifiers.IsShiftDown() || Modifiers.IsCommandDown()
+				|| (Focused.IsValid() && Focused->GetTypeAsString().Contains(TEXT("EditableText")))) { return false; }
+		}
+		auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn());
+		if (!ControlledCharacter || !IsValid(ControlledCharacter->GetHorrorFlashlight())) { return false; }
+		if (!bIsRepeat) { ControlledCharacter->ToggleFlashlight(); }
+		return true;
+	}
 	if ((Key == EKeys::G || Key == EKeys::T || Key == EKeys::H) && bControlDown)
 	{
 		if (FSlateApplication::IsInitialized())
@@ -448,6 +465,7 @@ void ASMAGFPlayerController::SetPlayerPerspective(ESMAGFPlayerPerspective NewPer
   SetControlRotation(FRotator(0.f, Direction.Rotation().Yaw, 0.f));
  }
  Perspective = NewPerspective;
+ FlashlightMotion.Reset();
  if (auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
  {
   if (IsFirstPersonPerspective()) { bSavedOwnerNoSee=ControlledCharacter->GetMesh()->bOwnerNoSee; ControlledCharacter->GetMesh()->SetOwnerNoSee(true); }
@@ -485,22 +503,31 @@ FVector ASMAGFPlayerController::GetFirstPersonAimPoint() const
  return GetWorld()->LineTraceSingleByChannel(Hit,View.Location,End,ECC_Visibility,Query) ? FVector(Hit.ImpactPoint) : End;
 }
 
-void ASMAGFPlayerController::UpdateFlashlight()
+void ASMAGFPlayerController::UpdateFlashlight(float DeltaTime)
 {
-	// UpdateAim runs after Super::PlayerTick resolves current control input, and on perspective changes.
+	// Only PlayerTick supplies elapsed time; fire/transition refreshes cannot double-step lead.
 	auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn());
 	if (!ControlledCharacter || !IsValid(ControlledCharacter->GetHorrorFlashlight())) { return; }
+	FVector Location = ControlledCharacter->GetPawnViewLocation();
 	FRotator Rotation = LastAimDirection.Rotation();
 	if (IsFirstPersonPerspective())
 	{
 		const auto* Camera = Cast<ASMAGFPlayerCameraManager>(PlayerCameraManager);
-		if (!Camera) { return; }
-		Rotation = Camera->GetFirstPersonBaseView().Rotation;
+		const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
+		if (!Camera || !Mode) { return; }
+		const auto View = Camera->GetFirstPersonBaseView();
+		FlashlightMotion.Advance(View.Rotation, DeltaTime, *Mode);
+		const FTransform Transform = FlashlightMotion.MakeTransform(View.Location, View.Rotation, *Mode);
+		Location = Transform.GetLocation(); Rotation = Transform.Rotator();
 	}
-	else if (bHasTopDownAimPoint)
+	else
 	{
-		const FVector Direction = LastTopDownAimPoint - ControlledCharacter->GetPawnViewLocation();
-		if (!Direction.IsNearlyZero()) { Rotation = Direction.Rotation(); }
+		FlashlightMotion.Reset();
+		if (bHasTopDownAimPoint)
+		{
+			const FVector Direction = LastTopDownAimPoint - Location;
+			if (!Direction.IsNearlyZero()) { Rotation = Direction.Rotation(); }
+		}
 	}
-	ControlledCharacter->UpdateFlashlightTransform(Rotation);
+	ControlledCharacter->UpdateFlashlightTransform(Location, Rotation);
 }
