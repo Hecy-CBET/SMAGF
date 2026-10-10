@@ -1,4 +1,5 @@
 #include "Combat/SMAGFWeaponComponent.h"
+#include "SMAGFPlayerController.h"
 #include "Presentation/SMAGFEventPresentationComponent.h"
 #include "Combat/SMAGFProjectile.h"
 #include "Engine/World.h"
@@ -122,18 +123,26 @@ void USMAGFWeaponComponent::FireShot()
 	{
 		SpawnLocation = Start;
 	}
-	const FTransform Transform(GetOwner()->GetActorRotation(), SpawnLocation);
+	FVector Direction = GetOwner()->GetActorForwardVector();
+	const auto* Pawn = Cast<APawn>(GetOwner());
+	const auto* Controller = Pawn ? Cast<ASMAGFPlayerController>(Pawn->GetController()) : nullptr;
+	if (Controller && Controller->IsFirstPersonPerspective())
+	{
+		const FVector ToAim = Controller->GetFirstPersonAimPoint() - SpawnLocation;
+		if (!ToAim.ContainsNaN() && !ToAim.IsNearlyZero()) { Direction = ToAim.GetSafeNormal(); }
+	}
+	const FTransform Transform(Direction.Rotation(), SpawnLocation);
 	ASMAGFProjectile* Projectile = World->SpawnActorDeferred<ASMAGFProjectile>(ProjectileClass, Transform,
 		GetOwner(), Cast<APawn>(GetOwner()), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (Projectile)
 	{
-		Projectile->InitializeShot(GetOwner()->GetActorForwardVector(), ProjectileSpeed, ProjectileDamage);
+		Projectile->InitializeShot(Direction, ProjectileSpeed, ProjectileDamage);
 		Projectile->FinishSpawning(Transform);
 		if (auto* Presentation = GetOwner()->FindComponentByClass<USMAGFEventPresentationComponent>())
-		{ Presentation->Shot(Muzzle, GetOwner()->GetActorForwardVector()); }
+		{ Presentation->Shot(Muzzle, Direction); }
 		if (USMAGFReactionComponent* Reaction = GetOwner()->FindComponentByClass<USMAGFReactionComponent>())
 		{
-			Reaction->OnShot(GetOwner()->GetActorForwardVector());
+			Reaction->OnShot(Direction);
 		}
 	}
 }

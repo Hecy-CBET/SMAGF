@@ -10,6 +10,12 @@ class SMAGF_API ASMAGFPlayerCameraManager : public APlayerCameraManager
 {
 	GENERATED_BODY()
 public:
+	FMinimalViewInfo GetFirstPersonBaseView() const;
+	void PerspectiveChanged();
+	virtual void ProcessViewRotation(float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot) override;
+	UPROPERTY(EditDefaultsOnly, Category="SMAGF|Perspective", meta=(ClampMin="5", ClampMax="170"))
+	float FirstPersonFOV = 90.f;
+	static constexpr float FirstPersonPitchLimit = 85.f;
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Camera")
 	void NotifyShot(FVector Direction);
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Camera")

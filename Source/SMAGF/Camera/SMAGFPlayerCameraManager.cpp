@@ -1,4 +1,5 @@
 #include "Camera/SMAGFPlayerCameraManager.h"
+#include "SMAGFPlayerController.h"
 #include "Showcase/SMAGFShowcaseDirector.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Feedback/SMAGFMotion.h"
@@ -55,6 +56,13 @@ void ASMAGFPlayerCameraManager::SettingsChanged()
 void ASMAGFPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime)
 {
 	Super::UpdateViewTargetInternal(OutVT, DeltaTime);
+	const auto* Controller = Cast<ASMAGFPlayerController>(PCOwner);
+	const bool bFirstPerson = Controller && Controller->IsFirstPersonPerspective();
+	if (bFirstPerson && PCOwner->GetPawn())
+	{
+		const auto Base = GetFirstPersonBaseView();
+		OutVT.POV.Location = Base.Location; OutVT.POV.Rotation = Base.Rotation; OutVT.POV.FOV = Base.FOV;
+	}
 	LogicalPOV = OutVT.POV;
 	if (!Showcase.IsValid())
 	{
@@ -70,13 +78,16 @@ void ASMAGFPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, fl
 	if(!FocusDirector.IsValid()) { FocusDirector=ASMAGFShowcaseDirector::Get(GetWorld()); }
 	if(FocusDirector.IsValid()) { FocusDirector->UpdateMouseFocus(this,PCOwner,Dt); }
 	ShotAge += Dt; KillAge += Dt;
+	FVector Offset = FVector::ZeroVector;
+	if (!bFirstPerson)
+	{
 	Follow = Enabled(ESMAGFShowcaseFeature::CameraFollowSmoothing) && Gain > 0.f
 		? FMath::VInterpTo(Follow, LogicalPOV.Location, Dt, S.Camera.CameraFollowSpeed) : LogicalPOV.Location;
 	Follow = LogicalPOV.Location + (Follow - LogicalPOV.Location).GetClampedToMaxSize(250.f);
 	FVector Aim = PCOwner && PCOwner->GetPawn() ? PCOwner->GetPawn()->GetActorForwardVector() : FVector::ZeroVector;
 	Look = Enabled(ESMAGFShowcaseFeature::AimLookAhead) && Gain > 0.f
 		? FMath::VInterpTo(Look, Aim * S.Camera.AimLookAheadDistance * Gain, Dt, S.Camera.AimLookAheadInterpolation) : FVector::ZeroVector;
-	FVector Offset = Follow - LogicalPOV.Location + Look.GetClampedToMaxSize(2000.f);
+	Offset = Follow - LogicalPOV.Location + Look.GetClampedToMaxSize(2000.f);
 	const bool FocusEnabled=Showcase->IsShowcaseEnabled() && Showcase->IsGroupEnabled(ESMAGFShowcaseGroup::Focus);
 	const float Strength=FocusEnabled && FocusDirector.IsValid()?FocusDirector->GetFocusStrength():0.f;
 	const float FocusGain=FMath::Clamp(Strength*S.Focus.FocusIntensity*Gain,0.f,1.f);
@@ -108,8 +119,15 @@ void ASMAGFPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, fl
 		if(HasFocusPostProcessContribution(Enabled(ESMAGFShowcaseFeature::ContextualPostProcess),S.Focus.FocusExposureBias))
 		{ FocusPP.bOverride_AutoExposureBias=true;FocusPP.AutoExposureBias=LogicalPOV.PostProcessSettings.AutoExposureBias+FMath::Clamp(S.Focus.FocusExposureBias,-.25f,.25f); }
 	}
+	}
+	else
+	{
+		Follow = LogicalPOV.Location; Look = FocusOffset = FVector::ZeroVector; FocusZoom = 0.f;
+		FocusPostProcess = FPostProcessSettings(); FocusPostProcessWeight = 0.f;
+	}
 	FRotator Rotation = FRotator::ZeroRotator;
-	if (Enabled(ESMAGFShowcaseFeature::KillCameraEmphasis) && KillAge < KillSettings.KillCameraDuration)
+	// Kill emphasis is a world-space pull toward the kill, unsuitable for an eye-anchored view.
+	if (!bFirstPerson && Enabled(ESMAGFShowcaseFeature::KillCameraEmphasis) && KillAge < KillSettings.KillCameraDuration)
 	{
 		const float Weight = 1.f - KillAge / KillSettings.KillCameraDuration;
 		const FVector Pivot = PCOwner && PCOwner->GetPawn() ? PCOwner->GetPawn()->GetActorLocation() : LogicalPOV.Location;
@@ -228,3 +246,32 @@ bool FSMAGFFocusNeutralPostProcessTest::RunTest(const FString& Parameters)
 	return true;
 }
 #endif
+
+FMinimalViewInfo ASMAGFPlayerCameraManager::GetFirstPersonBaseView() const
+{
+ FMinimalViewInfo View;
+ View.Location = PCOwner && PCOwner->GetPawn() ? PCOwner->GetPawn()->GetPawnViewLocation() : FVector::ZeroVector;
+ View.Rotation = PCOwner ? PCOwner->GetControlRotation() : FRotator::ZeroRotator;
+ View.Rotation.Pitch = FMath::Clamp(FRotator::NormalizeAxis(View.Rotation.Pitch), -FirstPersonPitchLimit, FirstPersonPitchLimit);
+ View.Rotation.Roll = 0.f;
+ View.FOV = FMath::IsFinite(FirstPersonFOV) ? FMath::Clamp(FirstPersonFOV,5.f,170.f) : 90.f;
+ return View;
+}
+
+void ASMAGFPlayerCameraManager::PerspectiveChanged()
+{
+ bHaveView=false; Look=FocusOffset=FVector::ZeroVector; FocusZoom=FocusPostProcessWeight=0.f;
+ ShotAge=KillAge=100.f;
+ UpdateCamera(0.f);
+}
+
+void ASMAGFPlayerCameraManager::ProcessViewRotation(float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot)
+{
+ Super::ProcessViewRotation(DeltaTime,OutViewRotation,OutDeltaRot);
+ const auto* Controller=Cast<ASMAGFPlayerController>(PCOwner);
+ if(Controller && Controller->IsFirstPersonPerspective())
+ {
+  OutViewRotation.Pitch=FMath::Clamp(FRotator::NormalizeAxis(OutViewRotation.Pitch),-FirstPersonPitchLimit,FirstPersonPitchLimit);
+  OutViewRotation.Roll=0.f;
+ }
+}

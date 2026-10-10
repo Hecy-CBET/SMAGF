@@ -1,4 +1,5 @@
 #include "Showcase/SMAGFShowcaseDirector.h"
+#include "SMAGFPlayerController.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Camera/SMAGFPlayerCameraManager.h"
 #include "Targets/SMAGFTarget.h"
@@ -88,6 +89,11 @@ bool ASMAGFShowcaseDirector::SetValidationMouseInput(FVector2D Screen,FIntPoint 
 void ASMAGFShowcaseDirector::ClearValidationMouseInput() { bValidationInput=false; }
 void ASMAGFShowcaseDirector::UpdateMouseFocus(ASMAGFPlayerCameraManager* Camera,APlayerController* Controller,float Dt)
 {
+ const auto* Player = Cast<ASMAGFPlayerController>(Controller);
+ if(Player && Player->IsFirstPersonPerspective())
+ {
+  Release(TEXT("first_person"),true); Strength=0.f; UpdateLight(); return;
+ }
  if(!Enabled()) { SettingsChanged();return; }
  if(GetWorld()->IsPaused()) { return; }
  Dt=FMath::Max(0.f,Dt);

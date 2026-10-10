@@ -64,8 +64,8 @@ ASMAGFProjectile::ASMAGFProjectile()
 
 void ASMAGFProjectile::InitializeShot(const FVector& Direction, float Speed, float InDamage)
 {
-	ShotDirection = Direction.GetSafeNormal2D();
-	FlightDirection = SMAGFMotion::PlanarDirection(ShotDirection);
+	ShotDirection = Direction.GetSafeNormal();
+	FlightDirection = ShotDirection;
 	Damage = FMath::IsFinite(InDamage) ? FMath::Max(0.f, InDamage) : 0.f;
 	const float SafeSpeed = FMath::IsFinite(Speed) ? FMath::Max(1.f, Speed) : 2000.f;
 	Movement->InitialSpeed = SafeSpeed;

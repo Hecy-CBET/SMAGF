@@ -10,11 +10,25 @@ class UEnhancedInputLocalPlayerSubsystem;
 class SSMAGFShowcaseDebugPanel;
 struct FInputActionValue;
 
+UENUM(BlueprintType)
+enum class ESMAGFPlayerPerspective : uint8 { TopDown, FirstPerson };
+
 UCLASS()
 class SMAGF_API ASMAGFPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 public:
+	UFUNCTION(BlueprintPure, Category="SMAGF|Perspective")
+	ESMAGFPlayerPerspective GetPlayerPerspective() const { return Perspective; }
+	UFUNCTION(BlueprintPure, Category="SMAGF|Perspective")
+	bool IsFirstPersonPerspective() const { return Perspective == ESMAGFPlayerPerspective::FirstPerson; }
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Perspective")
+	void SetPlayerPerspective(ESMAGFPlayerPerspective NewPerspective);
+	UFUNCTION(BlueprintCallable, Category="SMAGF|Perspective")
+	void TogglePlayerPerspective();
+	/** Stable eye/control-view trace, shared by aiming and the existing fire path. */
+	UFUNCTION(BlueprintPure, Category="SMAGF|Perspective")
+	FVector GetFirstPersonAimPoint() const;
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
 	void ToggleShowcasePanel();
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Showcase")
@@ -37,6 +51,12 @@ protected:
 	virtual void OnUnPossess() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 private:
+	UPROPERTY(Transient) ESMAGFPlayerPerspective Perspective = ESMAGFPlayerPerspective::TopDown;
+	void ApplyPerspectiveInput();
+	void LookYaw(float Value);
+	void LookPitch(float Value);
+	bool bSavedOwnerNoSee = false;
+	static constexpr float FirstPersonAimDistance = 10000.f;
 	TSharedPtr<class SSMAGFShowcaseLayerIndicator> LayerIndicator;
 	void RemoveShowcasePanel(bool bRestoreInput);
 	void PreviousShowcaseLayer();

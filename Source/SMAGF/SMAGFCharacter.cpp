@@ -1,4 +1,5 @@
 #include "SMAGFCharacter.h"
+#include "SMAGFPlayerController.h"
 #include "Presentation/SMAGFEventPresentationComponent.h"
 #include "SMAGF.h"
 #include "Animation/AnimInstance.h"
@@ -65,7 +66,8 @@ void ASMAGFCharacter::MoveInCameraPlane(const FVector2D& Intent)
 		return;
 	}
 	const FVector2D Clamped = Intent.GetClampedToMaxSize(1.f);
-	const FRotator Basis(0.f, CameraBoom->GetComponentRotation().Yaw, 0.f);
+	const auto* Player = Cast<ASMAGFPlayerController>(GetController());
+	const FRotator Basis(0.f, Player && Player->IsFirstPersonPerspective() ? Player->GetControlRotation().Yaw : CameraBoom->GetComponentRotation().Yaw, 0.f);
 	AddMovementInput(Basis.Vector(), Clamped.X);
 	AddMovementInput(FRotationMatrix(Basis).GetUnitAxis(EAxis::Y), Clamped.Y);
 }

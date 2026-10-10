@@ -1,5 +1,7 @@
 #include "SMAGFPlayerController.h"
 #include "SMAGFGameMode.h"
+#include "Showcase/SMAGFShowcaseDirector.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Debug/SMAGFShowcaseLayerIndicator.h"
 #include "Camera/SMAGFPlayerCameraManager.h"
 #include "SMAGF.h"
@@ -94,10 +96,9 @@ void ASMAGFPlayerController::SetupInputComponent()
 	}
 	CreateInputObjects();
 	AddOwnedMapping();
-	FInputModeGameAndUI Mode;
-	Mode.SetHideCursorDuringCapture(false);
-	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	SetInputMode(Mode);
+	ApplyPerspectiveInput();
+	InputComponent->BindAxisKey(EKeys::MouseX, this, &ASMAGFPlayerController::LookYaw);
+	InputComponent->BindAxisKey(EKeys::MouseY, this, &ASMAGFPlayerController::LookPitch);
 	InputComponent->BindKey(EKeys::PageUp, IE_Pressed, this, &ASMAGFPlayerController::PreviousShowcaseLayer);
 	InputComponent->BindKey(EKeys::PageDown, IE_Pressed, this, &ASMAGFPlayerController::NextShowcaseLayer);
 	InputComponent->BindKey(EKeys::LeftBracket, IE_Pressed, this, &ASMAGFPlayerController::PreviousShowcaseLayer);
@@ -129,6 +130,12 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(InPawn))
 	{
 		ControlledCharacter->GetWeapon()->AddTickPrerequisiteActor(this);
+		if (IsFirstPersonPerspective())
+		{
+			bSavedOwnerNoSee = ControlledCharacter->GetMesh()->bOwnerNoSee;
+			ControlledCharacter->GetMesh()->SetOwnerNoSee(true);
+			SetControlRotation(FRotator(0.f, LastAimDirection.Rotation().Yaw, 0.f));
+		}
 	}
 }
 
@@ -139,6 +146,7 @@ void ASMAGFPlayerController::OnUnPossess()
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
 	{
 		ControlledCharacter->GetWeapon()->RemoveTickPrerequisiteActor(this);
+		if (IsFirstPersonPerspective()) { ControlledCharacter->GetMesh()->SetOwnerNoSee(bSavedOwnerNoSee); }
 	}
 	RemoveOwnedMapping();
 	Super::OnUnPossess();
@@ -162,6 +170,7 @@ void ASMAGFPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
+	SetPlayerPerspective(Mode && Mode->IsHorrorMode() ? ESMAGFPlayerPerspective::FirstPerson : ESMAGFPlayerPerspective::TopDown);
 	if ((!Mode || !Mode->IsHorrorMode()) && IsLocalController() && GetWorld()->GetGameViewport() && FSlateApplication::IsInitialized())
 	{
 		LayerIndicator=SNew(SSMAGFShowcaseLayerIndicator).Subsystem(GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>());
@@ -257,6 +266,12 @@ void ASMAGFPlayerController::UpdateAim()
 	{
 		return;
 	}
+	if (IsFirstPersonPerspective())
+	{
+		LastAimDirection = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
+		ControlledCharacter->ApplyAimDirection(LastAimDirection);
+		return;
+	}
 	FVector RayOrigin, RayDirection;
 	const FVector Muzzle = ControlledCharacter->GetWeapon()->GetMuzzleLocation();
 	float MouseX = 0.f, MouseY = 0.f;
@@ -323,12 +338,7 @@ void ASMAGFPlayerController::RemoveShowcasePanel(bool bRestoreInput)
 	bRequireMoveRelease = true;
 	if (bRestoreInput && IsLocalController())
 	{
-		// Restore the approved Phase 1 GameAndUI mode with its visible aim cursor.
-		bShowMouseCursor = true;
-		FInputModeGameAndUI Mode;
-		Mode.SetHideCursorDuringCapture(false);
-		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(Mode);
+		ApplyPerspectiveInput();
 		if (FSlateApplication::IsInitialized()) { FSlateApplication::Get().SetAllUserFocusToGameViewport(); }
 	}
 }
@@ -347,7 +357,7 @@ bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
 
 bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 {
-	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G || EventArgs.Key == EKeys::T)
+	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G || EventArgs.Key == EKeys::T || EventArgs.Key == EKeys::H)
 		&& (EventArgs.Event == IE_Pressed || EventArgs.Event == IE_Repeat))
 	{
 		const bool bControlDown = FSlateApplication::IsInitialized()
@@ -363,13 +373,14 @@ bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 
 bool ASMAGFPlayerController::HandleShowcaseToggleKey(FKey Key, bool bControlDown, bool bIsRepeat)
 {
-	if ((Key == EKeys::G || Key == EKeys::T) && bControlDown)
+	if ((Key == EKeys::G || Key == EKeys::T || Key == EKeys::H) && bControlDown)
 	{
 		if (FSlateApplication::IsInitialized())
 		{
 			const auto FocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
 			if (FocusedWidget.IsValid() && FocusedWidget->GetTypeAsString().Contains(TEXT("EditableText"))) { return false; }
 		}
+		if (!bIsRepeat && Key == EKeys::H) { TogglePlayerPerspective(); return true; }
 		if (!bIsRepeat && GetWorld())
 		{
 			if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>())
@@ -390,3 +401,72 @@ void ASMAGFPlayerController::PreviousShowcaseLayer() { HandleShowcaseKey(EKeys::
 void ASMAGFPlayerController::NextShowcaseLayer() { HandleShowcaseKey(EKeys::PageDown); }
 void ASMAGFPlayerController::BaselineShowcaseLayer() { HandleShowcaseKey(EKeys::Home); }
 void ASMAGFPlayerController::FullShowcaseLayer() { HandleShowcaseKey(EKeys::End); }
+
+void ASMAGFPlayerController::ApplyPerspectiveInput()
+{
+ if (!IsLocalController()) { return; }
+ bShowMouseCursor = !IsFirstPersonPerspective();
+ if (IsFirstPersonPerspective())
+ {
+  FInputModeGameOnly InputMode;
+  InputMode.SetConsumeCaptureMouseDown(false);
+  SetInputMode(InputMode);
+ }
+ else
+ {
+  FInputModeGameAndUI InputMode;
+  InputMode.SetHideCursorDuringCapture(false);
+  InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+  SetInputMode(InputMode);
+ }
+}
+
+void ASMAGFPlayerController::SetPlayerPerspective(ESMAGFPlayerPerspective NewPerspective)
+{
+ if (NewPerspective != ESMAGFPlayerPerspective::TopDown && NewPerspective != ESMAGFPlayerPerspective::FirstPerson) { return; }
+ if (Perspective == NewPerspective) { if (!IsShowcasePanelOpen()) { ApplyPerspectiveInput(); } return; }
+ RemoveShowcasePanel(false);
+ CancelHeldInput(); bRequireFireRelease = bRequireMoveRelease = true;
+ RotationInput = FRotator::ZeroRotator;
+ if (NewPerspective == ESMAGFPlayerPerspective::FirstPerson)
+ {
+  const FVector Direction = LastAimDirection.IsNearlyZero() && GetPawn() ? GetPawn()->GetActorForwardVector() : LastAimDirection;
+  SetControlRotation(FRotator(0.f, Direction.Rotation().Yaw, 0.f));
+ }
+ Perspective = NewPerspective;
+ if (auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+ {
+  if (IsFirstPersonPerspective()) { bSavedOwnerNoSee=ControlledCharacter->GetMesh()->bOwnerNoSee; ControlledCharacter->GetMesh()->SetOwnerNoSee(true); }
+  else { ControlledCharacter->GetMesh()->SetOwnerNoSee(bSavedOwnerNoSee); }
+ }
+ ApplyPerspectiveInput();
+ auto* Camera = Cast<ASMAGFPlayerCameraManager>(PlayerCameraManager);
+ if (auto* Director = ASMAGFShowcaseDirector::Get(GetWorld())) { Director->UpdateMouseFocus(Camera,this,0.f); }
+ if (Camera) { Camera->PerspectiveChanged(); }
+ UpdateAim();
+}
+
+void ASMAGFPlayerController::TogglePlayerPerspective()
+{
+ SetPlayerPerspective(IsFirstPersonPerspective() ? ESMAGFPlayerPerspective::TopDown : ESMAGFPlayerPerspective::FirstPerson);
+}
+
+void ASMAGFPlayerController::LookYaw(float Value)
+{
+ if (IsFirstPersonPerspective() && !IsShowcasePanelOpen()) { AddYawInput(Value); }
+}
+void ASMAGFPlayerController::LookPitch(float Value)
+{
+ if (IsFirstPersonPerspective() && !IsShowcasePanelOpen()) { AddPitchInput(-Value); }
+}
+
+FVector ASMAGFPlayerController::GetFirstPersonAimPoint() const
+{
+ const auto* Camera = Cast<ASMAGFPlayerCameraManager>(PlayerCameraManager);
+ if (!Camera || !GetPawn()) { return FVector::ZeroVector; }
+ const auto View = Camera->GetFirstPersonBaseView();
+ const FVector End = View.Location + View.Rotation.Vector() * FirstPersonAimDistance;
+ FCollisionQueryParams Query(SCENE_QUERY_STAT(SMAGFFirstPersonAim),false,GetPawn());
+ FHitResult Hit;
+ return GetWorld()->LineTraceSingleByChannel(Hit,View.Location,End,ECC_Visibility,Query) ? FVector(Hit.ImpactPoint) : End;
+}
