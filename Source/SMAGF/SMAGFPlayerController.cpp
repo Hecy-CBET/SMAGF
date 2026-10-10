@@ -125,6 +125,7 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 	CancelHeldInput();
 	Super::OnPossess(InPawn);
 	LastAimDirection = InPawn->GetActorForwardVector().GetSafeNormal2D();
+	bHasTopDownAimPoint = false;
 	CreateInputObjects();
 	AddOwnedMapping();
 	if (ASMAGFCharacter* ControlledCharacter = Cast<ASMAGFCharacter>(InPawn))
@@ -136,6 +137,8 @@ void ASMAGFPlayerController::OnPossess(APawn* InPawn)
 			ControlledCharacter->GetMesh()->SetOwnerNoSee(true);
 			SetControlRotation(FRotator(0.f, LastAimDirection.Rotation().Yaw, 0.f));
 		}
+		// Initial possession can precede BeginPlay; that path initializes below instead.
+		if (HasActorBegunPlay()) { ControlledCharacter->InitializeHorrorFlashlight(); UpdateAim(); }
 	}
 }
 
@@ -171,6 +174,11 @@ void ASMAGFPlayerController::BeginPlay()
 	Super::BeginPlay();
 	const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
 	SetPlayerPerspective(Mode && Mode->IsHorrorMode() ? ESMAGFPlayerPerspective::FirstPerson : ESMAGFPlayerPerspective::TopDown);
+	if (auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn()))
+	{
+		ControlledCharacter->InitializeHorrorFlashlight();
+		UpdateAim();
+	}
 	if ((!Mode || !Mode->IsHorrorMode()) && IsLocalController() && GetWorld()->GetGameViewport() && FSlateApplication::IsInitialized())
 	{
 		LayerIndicator=SNew(SSMAGFShowcaseLayerIndicator).Subsystem(GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>());
@@ -270,8 +278,11 @@ void ASMAGFPlayerController::UpdateAim()
 	{
 		LastAimDirection = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
 		ControlledCharacter->ApplyAimDirection(LastAimDirection);
+		bHasTopDownAimPoint = false;
+		UpdateFlashlight();
 		return;
 	}
+	bHasTopDownAimPoint = false;
 	FVector RayOrigin, RayDirection;
 	const FVector Muzzle = ControlledCharacter->GetWeapon()->GetMuzzleLocation();
 	float MouseX = 0.f, MouseY = 0.f;
@@ -290,10 +301,13 @@ void ASMAGFPlayerController::UpdateAim()
 			if (!AimPoint.ContainsNaN() && !Direction.ContainsNaN() && !Direction.IsNearlyZero())
 			{
 				LastAimDirection = Direction;
+				LastTopDownAimPoint = AimPoint;
+				bHasTopDownAimPoint = true;
 			}
 		}
 	}
 	ControlledCharacter->ApplyAimDirection(LastAimDirection);
+	UpdateFlashlight();
 }
 
 void ASMAGFPlayerController::ToggleShowcasePanel()
@@ -469,4 +483,24 @@ FVector ASMAGFPlayerController::GetFirstPersonAimPoint() const
  FCollisionQueryParams Query(SCENE_QUERY_STAT(SMAGFFirstPersonAim),false,GetPawn());
  FHitResult Hit;
  return GetWorld()->LineTraceSingleByChannel(Hit,View.Location,End,ECC_Visibility,Query) ? FVector(Hit.ImpactPoint) : End;
+}
+
+void ASMAGFPlayerController::UpdateFlashlight()
+{
+	// UpdateAim runs after Super::PlayerTick resolves current control input, and on perspective changes.
+	auto* ControlledCharacter = Cast<ASMAGFCharacter>(GetPawn());
+	if (!ControlledCharacter || !IsValid(ControlledCharacter->GetHorrorFlashlight())) { return; }
+	FRotator Rotation = LastAimDirection.Rotation();
+	if (IsFirstPersonPerspective())
+	{
+		const auto* Camera = Cast<ASMAGFPlayerCameraManager>(PlayerCameraManager);
+		if (!Camera) { return; }
+		Rotation = Camera->GetFirstPersonBaseView().Rotation;
+	}
+	else if (bHasTopDownAimPoint)
+	{
+		const FVector Direction = LastTopDownAimPoint - ControlledCharacter->GetPawnViewLocation();
+		if (!Direction.IsNearlyZero()) { Rotation = Direction.Rotation(); }
+	}
+	ControlledCharacter->UpdateFlashlightTransform(Rotation);
 }

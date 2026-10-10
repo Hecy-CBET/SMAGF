@@ -51,6 +51,7 @@ protected:
 	virtual void OnUnPossess() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 private:
+	friend struct FSMAGFFlashlightFixture;
 	UPROPERTY(Transient) ESMAGFPlayerPerspective Perspective = ESMAGFPlayerPerspective::TopDown;
 	void ApplyPerspectiveInput();
 	void LookYaw(float Value);
@@ -75,6 +76,9 @@ private:
 	void OnFireReleased();
 	void CancelHeldInput();
 	void UpdateAim();
+	void UpdateFlashlight();
+	FVector LastTopDownAimPoint = FVector::ZeroVector;
+	bool bHasTopDownAimPoint = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> BaselineMapping;

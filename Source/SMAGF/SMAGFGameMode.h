@@ -16,6 +16,10 @@ public:
 	bool bHorrorMode = false;
 	UFUNCTION(BlueprintPure, Category="SMAGF|Horror")
 	bool IsHorrorMode() const { return bHorrorMode; }
+	/** Presentation class supplied by the Horror GameMode asset; no native asset fallback. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror")
+	TSubclassOf<AActor> HorrorFlashlightClass = nullptr;
+	TSubclassOf<AActor> GetHorrorFlashlightClass() const { return HorrorFlashlightClass; }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
 	ESMAGFEnemyDebugMode GetEnemyDebugMode() const { return EnemyDebugMode; }
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")

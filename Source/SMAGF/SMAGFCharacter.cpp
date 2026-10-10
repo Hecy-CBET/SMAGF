@@ -1,5 +1,8 @@
 #include "SMAGFCharacter.h"
 #include "SMAGFPlayerController.h"
+#include "SMAGFGameMode.h"
+#include "Components/SceneComponent.h"
+#include "Engine/World.h"
 #include "Presentation/SMAGFEventPresentationComponent.h"
 #include "SMAGF.h"
 #include "Animation/AnimInstance.h"
@@ -38,6 +41,11 @@ ASMAGFCharacter::ASMAGFCharacter()
 	TopDownCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCameraComponent->bUsePawnControlRotation = false;
 	TopDownCameraComponent->FieldOfView = 55.f;
+	FlashlightAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("FlashlightAnchor"));
+	FlashlightAnchor->SetupAttachment(RootComponent);
+	FlashlightAnchor->SetUsingAbsoluteRotation(true);
+	FlashlightAnchor->SetRelativeLocation(FVector(0.f, 0.f, BaseEyeHeight));
+	FlashlightAnchor->SetCanEverAffectNavigation(false);
 	Weapon = CreateDefaultSubobject<USMAGFWeaponComponent>(TEXT("Weapon"));
 	Reaction = CreateDefaultSubobject<USMAGFReactionComponent>(TEXT("Reaction"));
 
@@ -78,4 +86,43 @@ void ASMAGFCharacter::ApplyAimDirection(const FVector& Direction)
 	{
 		SetActorRotation(FRotator(0.f, Direction.Rotation().Yaw, 0.f));
 	}
+}
+
+void ASMAGFCharacter::InitializeHorrorFlashlight()
+{
+	if (bFlashlightInitializationAttempted || !GetController()) { return; }
+	const auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>();
+	if (!Mode) { return; }
+	bFlashlightInitializationAttempted = true;
+	if (!Mode->IsHorrorMode()) { return; }
+	const TSubclassOf<AActor> FlashlightClass = Mode->GetHorrorFlashlightClass();
+	if (!FlashlightClass) { return; } // Intentionally unbound until the MCP asset pass.
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Params.ObjectFlags |= RF_Transient;
+	HorrorFlashlight = GetWorld()->SpawnActor<AActor>(FlashlightClass, GetPawnViewLocation(), FRotator::ZeroRotator, Params);
+	if (IsValid(HorrorFlashlight))
+	{
+		if (!HorrorFlashlight->GetRootComponent() || !HorrorFlashlight->AttachToComponent(
+			FlashlightAnchor, FAttachmentTransformRules::SnapToTargetIncludingScale))
+		{
+			HorrorFlashlight->Destroy();
+			HorrorFlashlight = nullptr;
+		}
+	}
+}
+
+void ASMAGFCharacter::UpdateFlashlightTransform(const FRotator& ViewRotation)
+{
+	if (!IsValid(HorrorFlashlight) || ViewRotation.ContainsNaN()) { return; }
+	FlashlightAnchor->SetWorldLocationAndRotation(GetPawnViewLocation(), FRotator(ViewRotation.Pitch, ViewRotation.Yaw, 0.f));
+}
+
+void ASMAGFCharacter::EndPlay(const EEndPlayReason::Type Reason)
+{
+	if (IsValid(HorrorFlashlight)) { HorrorFlashlight->Destroy(); }
+	HorrorFlashlight = nullptr;
+	Super::EndPlay(Reason);
 }
