@@ -1,4 +1,5 @@
 #include "Targets/SMAGFTarget.h"
+#include "SMAGFGameMode.h"
 #include "Showcase/SMAGFShowcaseDirector.h"
 #include "AIController.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -101,6 +102,9 @@ float ASMAGFTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEve
 
 void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
+	// Health commits its one-shot Alive -> Dead transition before this delegate.
+	if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>())
+	{ Mode->PlayHorrorMonsterDeathSoundAtLocation(GetActorLocation()); }
 	if (auto* Director=ASMAGFShowcaseDirector::Get(GetWorld())) { Director->UnregisterTarget(this); }
 	if (auto* Enemy=FindComponentByClass<USMAGFEnemyShowcaseComponent>()) { Enemy->StopForDeath(); }
 	SetCanBeDamaged(false);

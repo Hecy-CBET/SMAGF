@@ -6,6 +6,9 @@
 #include "TimerManager.h"
 #include "SMAGFGameMode.generated.h"
 
+class USoundBase;
+class UAudioComponent;
+
 UCLASS()
 class SMAGF_API ASMAGFGameMode : public AGameModeBase
 {
@@ -37,6 +40,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Flashlight", meta=(ClampMin="0.01", ClampMax="100"))
 	float HorrorFlashlightReturnInterpSpeed = 6.f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Audio")
+	TObjectPtr<USoundBase> HorrorAmbienceSound = nullptr;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Audio", meta=(ClampMin="0", ClampMax="4"))
+	float HorrorAmbienceVolumeMultiplier = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Audio")
+	TObjectPtr<USoundBase> HorrorMonsterDeathSound = nullptr;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Audio", meta=(ClampMin="0", ClampMax="4"))
+	float HorrorMonsterDeathVolumeMultiplier = 1.f;
+	void PlayHorrorMonsterDeathSoundAtLocation(const FVector& DeathLocation);
+
 	UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
 	ESMAGFEnemyDebugMode GetEnemyDebugMode() const { return EnemyDebugMode; }
 	UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")
@@ -47,6 +60,11 @@ public:
 	int32 RestoreShowcaseEnemies();
 	class ASMAGFShowcaseDirector* GetShowcaseDirector() const { return ShowcaseDirector; }
 private:
+	friend struct FSMAGFHorrorAudioFixture;
+	void InitializeHorrorAmbience();
+	void StopHorrorAmbience();
+	bool bHorrorAmbienceInitialized = false;
+	UPROPERTY(Transient) TObjectPtr<UAudioComponent> HorrorAmbienceComponent;
 	struct FShowcaseSpawnSlot
 	{
 		FTransform OriginalTransform;

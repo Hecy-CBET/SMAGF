@@ -1,4 +1,7 @@
 #include "SMAGFGameMode.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "Showcase/SMAGFShowcaseDirector.h"
 #include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "SMAGF.h"
@@ -43,6 +46,7 @@ ASMAGFGameMode::ASMAGFGameMode()
 void ASMAGFGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	InitializeHorrorAmbience();
 	Showcase = GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
 	if (Showcase.IsValid())
 	{ PresetChangedHandle = Showcase->OnPresetChangedNative.AddUObject(this, &ThisClass::ShowcasePresetChanged); }
@@ -172,6 +176,7 @@ int32 ASMAGFGameMode::RestoreShowcaseEnemies()
 void ASMAGFGameMode::EndPlay(const EEndPlayReason::Type Reason)
 {
 	bEndingPlay = true;
+	StopHorrorAmbience();
 	for (auto& Slot : SpawnSlots)
 	{
 		GetWorldTimerManager().ClearTimer(Slot.RespawnTimer);
@@ -179,4 +184,41 @@ void ASMAGFGameMode::EndPlay(const EEndPlayReason::Type Reason)
 	}
 	if (Showcase.IsValid()) { Showcase->OnPresetChangedNative.Remove(PresetChangedHandle); }
 	Super::EndPlay(Reason);
+}
+
+namespace
+{
+ float HorrorAudioVolume(float Value)
+ {
+  return FMath::IsFinite(Value) ? FMath::Clamp(Value, 0.f, 4.f) : 1.f;
+ }
+}
+
+void ASMAGFGameMode::InitializeHorrorAmbience()
+{
+ if (bHorrorAmbienceInitialized || bEndingPlay) { return; }
+ bHorrorAmbienceInitialized = true;
+ if (!IsHorrorMode() || !HorrorAmbienceSound) { return; }
+ HorrorAmbienceComponent = UGameplayStatics::SpawnSound2D(this, HorrorAmbienceSound,
+  HorrorAudioVolume(HorrorAmbienceVolumeMultiplier), 1.f, 0.f, nullptr, false, false);
+}
+
+void ASMAGFGameMode::StopHorrorAmbience()
+{
+ if (IsValid(HorrorAmbienceComponent))
+ {
+  HorrorAmbienceComponent->Stop();
+  HorrorAmbienceComponent->DestroyComponent();
+ }
+ HorrorAmbienceComponent = nullptr;
+}
+
+void ASMAGFGameMode::PlayHorrorMonsterDeathSoundAtLocation(const FVector& DeathLocation)
+{
+ if (bEndingPlay || !IsHorrorMode() || !HorrorMonsterDeathSound || DeathLocation.ContainsNaN()) { return; }
+ const float Volume = HorrorAudioVolume(HorrorMonsterDeathVolumeMultiplier);
+ UE_LOG(LogSMAGF, Verbose, TEXT("SMAGF_HORROR_DEATH_AUDIO volume=%.6f location=%s sound=%s"),
+  Volume, *DeathLocation.ToString(), *HorrorMonsterDeathSound->GetPathName());
+ // World-owned one-shot: never attached to the enemy or its presentation corpse.
+ UGameplayStatics::PlaySoundAtLocation(this, HorrorMonsterDeathSound, DeathLocation, Volume);
 }
