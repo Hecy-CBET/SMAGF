@@ -39,6 +39,7 @@ void ASMAGFGameMode::SetEnemyDebugMode(ESMAGFEnemyDebugMode NewMode)
 
 ASMAGFGameMode::ASMAGFGameMode()
 {
+	ShowcaseEnemyClass = ASMAGFTarget::StaticClass();
 	DefaultPawnClass = ASMAGFCharacter::StaticClass();
 	PlayerControllerClass = ASMAGFPlayerController::StaticClass();
 }
@@ -121,7 +122,7 @@ bool ASMAGFGameMode::SpawnShowcaseEnemy(int32 SlotIndex, bool bInitialSpawn)
 		? ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding
 		: ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ASMAGFTarget* Target = GetWorld()->SpawnActor<ASMAGFTarget>(
-		ASMAGFTarget::StaticClass(), Slot.OriginalTransform, Params);
+		ShowcaseEnemyClass ? ShowcaseEnemyClass.Get() : ASMAGFTarget::StaticClass(), Slot.OriginalTransform, Params);
 	if (!Target) { return false; }
 	Slot.Enemy = Target;
 	Target->FindComponentByClass<USMAGFEnemyShowcaseComponent>()->SetSpawnIndex(SlotIndex);

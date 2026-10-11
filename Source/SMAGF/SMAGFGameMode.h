@@ -6,6 +6,7 @@
 #include "TimerManager.h"
 #include "SMAGFGameMode.generated.h"
 
+class ASMAGFTarget;
 class USoundBase;
 class UAudioComponent;
 
@@ -15,6 +16,8 @@ class SMAGF_API ASMAGFGameMode : public AGameModeBase
 	GENERATED_BODY()
 public:
 	ASMAGFGameMode();
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Showcase")
+	TSubclassOf<ASMAGFTarget> ShowcaseEnemyClass;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror")
 	bool bHorrorMode = false;
 	UFUNCTION(BlueprintPure, Category="SMAGF|Horror")
@@ -61,6 +64,7 @@ public:
 	class ASMAGFShowcaseDirector* GetShowcaseDirector() const { return ShowcaseDirector; }
 private:
 	friend struct FSMAGFHorrorAudioFixture;
+	friend struct FSMAGFCanonicalClassFixture;
 	void InitializeHorrorAmbience();
 	void StopHorrorAmbience();
 	bool bHorrorAmbienceInitialized = false;
