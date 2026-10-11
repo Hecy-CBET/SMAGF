@@ -25,6 +25,7 @@ void USMAGFEnemyShowcaseComponent::BeginPlay()
  Super::BeginPlay();BaseRotation=GetOwner()->GetActorQuat();
  if(auto* Root=Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())) { FrontOffset=Root->Bounds.BoxExtent.X+8.f; }
  Marker=NewObject<UStaticMeshComponent>(GetOwner(),TEXT("EnemyFrontMarker"));GetOwner()->AddInstanceComponent(Marker);
+ Marker->SetVisibility(bFrontMarkerEnabled);
  Marker->SetupAttachment(GetOwner()->GetRootComponent());
  Marker->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
  Marker->SetCollisionEnabled(ECollisionEnabled::NoCollision);Marker->SetCanEverAffectNavigation(false);Marker->SetReceivesDecals(false);
@@ -219,7 +220,7 @@ void USMAGFEnemyShowcaseComponent::SettingsChanged()
 {
  ApplyMovementTuning();
  const bool Active=Enabled() && DebugMode!=ESMAGFEnemyDebugMode::Passive,Moving=MovementEnabled();SetComponentTickEnabled(Active);
- if(Marker) { Marker->SetVisibility(OffenseEnabled()); }
+ if(Marker) { Marker->SetVisibility(bFrontMarkerEnabled && OffenseEnabled()); }
  if(Active && !Moving && bMovementWasEnabled) { BeginBraking();State=ESMAGFEnemyState::Idle; }
  else if(!Active || Moving!=bMovementWasEnabled) { ResetCycle(); }
  if(!Enabled()) { GetOwner()->SetActorRotation(BaseRotation); }

@@ -30,7 +30,7 @@ bool FSMAGFSurfaceTest::RunTest(const FString& Parameters)
 	const FSMAGFCameraSettings Camera;
 	TestEqual(TEXT("Translation default"),Camera.ShakeTranslationAmplitude,1.2f);
 	TestEqual(TEXT("Rotation default"),Camera.ShakeRotationAmplitude,.4f);
-	TestEqual(TEXT("Kick distance unchanged"),Camera.CameraKickDistance,5.f);
+	TestEqual(TEXT("Approved kick distance default"),Camera.CameraKickDistance,1.f);
 	TestEqual(TEXT("Kick rotation unchanged"),Camera.CameraKickRotation,1.f);
 	if (FSlateApplication::IsInitialized())
 	{

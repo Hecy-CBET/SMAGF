@@ -10,6 +10,8 @@ class SMAGF_API USMAGFEnemyShowcaseComponent : public UActorComponent
 {
  GENERATED_BODY()
 public:
+ UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Enemy|Presentation")
+ bool bFrontMarkerEnabled = true;
  USMAGFEnemyShowcaseComponent();
  virtual void BeginPlay() override;
  virtual void EndPlay(const EEndPlayReason::Type Reason) override;
