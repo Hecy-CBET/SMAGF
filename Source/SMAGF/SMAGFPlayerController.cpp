@@ -1,4 +1,6 @@
 #include "SMAGFPlayerController.h"
+#include "AudioDevice.h"
+#include "AudioThread.h"
 #include "SMAGFGameMode.h"
 #include "Showcase/SMAGFShowcaseDirector.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -159,6 +161,7 @@ void ASMAGFPlayerController::OnUnPossess()
 
 void ASMAGFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+ SetGameAudioEnabled(true);
 	if (LayerIndicator.IsValid())
 	{
 		LayerIndicator->Disconnect();
@@ -374,6 +377,19 @@ bool ASMAGFPlayerController::HandleShowcaseKey(FKey Key)
 
 bool ASMAGFPlayerController::InputKey(const FInputKeyEventArgs& EventArgs)
 {
+ if (IsLocalController() && EventArgs.Key == EKeys::S)
+ {
+  const bool bSlate = FSlateApplication::IsInitialized();
+  const auto Modifiers = bSlate ? FSlateApplication::Get().GetModifierKeys() : FModifierKeysState();
+  const bool bCtrl = bSlate ? Modifiers.IsControlDown()
+   : IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
+  const bool bExtra = bSlate ? (Modifiers.IsShiftDown() || Modifiers.IsAltDown() || Modifiers.IsCommandDown())
+   : (IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift)
+    || IsInputKeyDown(EKeys::LeftAlt) || IsInputKeyDown(EKeys::RightAlt)
+    || IsInputKeyDown(EKeys::LeftCommand) || IsInputKeyDown(EKeys::RightCommand));
+  if (HandleGameAudioKey(EventArgs.Key, EventArgs.Event, bCtrl, bExtra)) { return true; }
+ }
+
 	if (IsLocalController() && (EventArgs.Key == EKeys::F || EventArgs.Key == EKeys::G || EventArgs.Key == EKeys::T || EventArgs.Key == EKeys::H)
 		&& (EventArgs.Event == IE_Pressed || EventArgs.Event == IE_Repeat))
 	{
@@ -530,4 +546,51 @@ void ASMAGFPlayerController::UpdateFlashlight(float DeltaTime)
 		}
 	}
 	ControlledCharacter->UpdateFlashlightTransform(Location, Rotation);
+}
+
+bool ASMAGFPlayerController::HandleGameAudioKey(FKey Key, EInputEvent Event, bool bControl, bool bExtraModifier)
+{
+ if (Key != EKeys::S || !bControl || bExtraModifier || (Event != IE_Pressed && Event != IE_Repeat)) { return false; }
+ if (FSlateApplication::IsInitialized())
+ {
+  const auto Focused = FSlateApplication::Get().GetKeyboardFocusedWidget();
+  if (Focused.IsValid() && Focused->GetTypeAsString().Contains(TEXT("EditableText"))) { return false; }
+ }
+ if (Event == IE_Pressed) { ToggleGameAudio(); }
+ return true;
+}
+
+void ASMAGFPlayerController::SetGameAudioEnabled(bool bEnabled)
+{
+ if (bGameAudioEnabled == bEnabled) { return; }
+ if (!bEnabled)
+ {
+  if (!IsLocalController() || !GetWorld()) { return; }
+  FAudioDeviceHandle Device = GetWorld()->GetAudioDevice();
+  if (!Device) { return; }
+  AudioMuteState = MakeShared<FAudioMuteState, ESPMode::ThreadSafe>();
+  MutedAudioDevice = Device;
+  const auto State = AudioMuteState;
+  FAudioThread::RunCommandOnAudioThread([Device, State]() mutable
+  {
+   State->PreviousVolume = Device->GetTransientPrimaryVolume();
+   Device->SetTransientPrimaryVolume(0.f);
+  });
+ }
+ else
+ {
+  auto Device = MutedAudioDevice;
+  const auto State = AudioMuteState;
+  if (Device && State)
+  {
+   FAudioThread::RunCommandOnAudioThread([Device, State]() mutable
+   {
+    Device->SetTransientPrimaryVolume(State->PreviousVolume);
+   });
+  }
+  MutedAudioDevice = FAudioDeviceHandle();
+  AudioMuteState.Reset();
+ }
+ bGameAudioEnabled = bEnabled;
+ UE_LOG(LogSMAGF, Display, TEXT("AUDIO: %s"), bEnabled ? TEXT("ON") : TEXT("OFF"));
 }

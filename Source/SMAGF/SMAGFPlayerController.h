@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AudioDeviceHandle.h"
 #include "GameFramework/PlayerController.h"
 #include "Horror/SMAGFFlashlightMotion.h"
 #include "SMAGFPlayerController.generated.h"
@@ -19,6 +20,12 @@ class SMAGF_API ASMAGFPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 public:
+ UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
+ bool IsGameAudioEnabled() const { return bGameAudioEnabled; }
+ UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")
+ void SetGameAudioEnabled(bool bEnabled);
+ UFUNCTION(BlueprintCallable, Category="SMAGF|Debug")
+ void ToggleGameAudio() { SetGameAudioEnabled(!bGameAudioEnabled); }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Perspective")
 	ESMAGFPlayerPerspective GetPlayerPerspective() const { return Perspective; }
 	UFUNCTION(BlueprintPure, Category="SMAGF|Perspective")
@@ -52,6 +59,13 @@ protected:
 	virtual void OnUnPossess() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 private:
+ friend struct FSMAGFAudioToggleFixture;
+ bool HandleGameAudioKey(FKey Key, EInputEvent Event, bool bControl, bool bExtraModifier);
+ UPROPERTY(Transient) bool bGameAudioEnabled = true;
+ // Previous multiplier is read/written only by ordered audio-thread commands.
+ struct FAudioMuteState { float PreviousVolume = 1.f; };
+ TSharedPtr<FAudioMuteState, ESPMode::ThreadSafe> AudioMuteState;
+ FAudioDeviceHandle MutedAudioDevice;
 	friend struct FSMAGFFlashlightFixture;
 	UPROPERTY(Transient) ESMAGFPlayerPerspective Perspective = ESMAGFPlayerPerspective::TopDown;
 	void ApplyPerspectiveInput();
