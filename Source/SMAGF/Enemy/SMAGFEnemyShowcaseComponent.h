@@ -10,12 +10,6 @@ class SMAGF_API USMAGFEnemyShowcaseComponent : public UActorComponent
 {
  GENERATED_BODY()
 public:
- UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Enemy|Presentation")
- bool bFrontMarkerEnabled = true;
- UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Enemy|Presentation")
- FLinearColor EnemyProjectileEmissiveColor = FLinearColor(0.f, .7f, 1.f, 1.f);
- UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Enemy|Presentation", meta=(ClampMin="0", ClampMax="100"))
- float EnemyProjectileEmissiveStrength = 4.f;
  USMAGFEnemyShowcaseComponent();
  virtual void BeginPlay() override;
  virtual void EndPlay(const EEndPlayReason::Type Reason) override;
@@ -35,6 +29,9 @@ public:
  UFUNCTION(BlueprintPure) TArray<float> GetRecheckDelays() const { return RecheckDelays; }
 private:
  void SettingsChanged();
+ void UpdateTelegraphPresentation(float Dt, bool bShotThisTick = false);
+ float TelegraphAlpha=0.f, RetractStartAlpha=0.f, RetractElapsed=0.f;
+ bool bWasPresentingTelegraph=false;
  void ResetCycle();
  bool Enabled() const;
  bool MovementEnabled() const;

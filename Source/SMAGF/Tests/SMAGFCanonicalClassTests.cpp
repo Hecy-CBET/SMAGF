@@ -8,11 +8,16 @@
 #include "Engine/Blueprint.h"
 #include "Engine/World.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/StrongObjectPtr.h"
 #include "SMAGF.h"
+#include "Misc/PackageName.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
-// Unsaved /Engine/Transient fixture; never creates a Content asset or production fallback.
+// Editor-only fixtures: transient subclasses or the externally saved persistence package.
+// Never writes Content or installs a production fallback.
 struct FSMAGFCanonicalClassFixture
 {
  static FString Selection;
@@ -24,7 +29,7 @@ struct FSMAGFCanonicalClassFixture
   if (!World || !World->IsGameWorld()) { return; }
   auto* Mode=World->GetAuthGameMode<ASMAGFGameMode>();
   if (!Mode || Mode->HasActorBegunPlay()) { return; }
-  if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored")))
+  if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored") || Selection==TEXT("charge-authored") || Selection==TEXT("charge-disabled")))
   {
    if (!Blueprint.IsValid() || !Blueprint->GeneratedClass) { return; }
    Mode->ShowcaseEnemyClass=Blueprint->GeneratedClass;
@@ -36,10 +41,19 @@ struct FSMAGFCanonicalClassFixture
  static void Run(const TArray<FString>& Args,UWorld* World)
  {
   if (Args.Num()!=1) { return; }
-  if (Args[0]==TEXT("subclass") || Args[0]==TEXT("marker-disabled") || Args[0]==TEXT("projectile-authored") || Args[0]==TEXT("null") || Args[0]==TEXT("native"))
+  if (Args[0]==TEXT("subclass") || Args[0]==TEXT("marker-disabled") || Args[0]==TEXT("projectile-authored") || Args[0]==TEXT("charge-authored") || Args[0]==TEXT("charge-disabled") || Args[0]==TEXT("null") || Args[0]==TEXT("native"))
   {
    Selection=Args[0];
-   if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored")) && !Blueprint.IsValid())
+   if(Selection==TEXT("charge-authored") || Selection==TEXT("charge-disabled"))
+   {
+    FString Directory;
+    if(!FParse::Value(FCommandLine::Get(),TEXT("SMAGFPresentationFixtureDir="),Directory)) { return; }
+    FPackageName::RegisterMountPoint(TEXT("/SMAGFPresentationTest/"),Directory);
+    Blueprint.Reset(LoadObject<UBlueprint>(nullptr,TEXT("/SMAGFPresentationTest/BP_Attack.BP_Attack")));
+    if(!Blueprint.IsValid() || !Blueprint->GeneratedClass) { return; }
+    if(Selection==TEXT("charge-disabled")) { CastChecked<ASMAGFTarget>(Blueprint->GeneratedClass->GetDefaultObject())->bFrontMarkerEnabled=false; }
+   }
+   if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored") || Selection==TEXT("charge-authored") || Selection==TEXT("charge-disabled")) && !Blueprint.IsValid())
    {
     Blueprint.Reset(FKismetEditorUtilities::CreateBlueprint(ASMAGFTarget::StaticClass(),
      GetTransientPackage(),MakeUniqueObjectName(GetTransientPackage(),UBlueprint::StaticClass(),TEXT("SMAGFCanonicalTest")),BPTYPE_Normal));
@@ -47,19 +61,25 @@ struct FSMAGFCanonicalClassFixture
     Blueprint->SetFlags(RF_Transient);
     FKismetEditorUtilities::CompileBlueprint(Blueprint.Get());
     if (!Blueprint->GeneratedClass) { return; }
-    // Author only the unsaved fixture's inherited component default.
-    if (Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored"))
+    // Author the unsaved fixture's actor Class Defaults.
+    if (Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored") || Selection==TEXT("charge-authored") || Selection==TEXT("charge-disabled"))
     {
      auto* Defaults=Cast<ASMAGFTarget>(Blueprint->GeneratedClass->GetDefaultObject());
      auto* Component=Defaults?Defaults->FindComponentByClass<USMAGFEnemyShowcaseComponent>():nullptr;
      if (!Component) { return; }
-     if (Selection==TEXT("marker-disabled")) { Component->bFrontMarkerEnabled=false; }
+     if (Selection==TEXT("marker-disabled")) { Defaults->bFrontMarkerEnabled=false; }
      else
      {
-      Component->EnemyProjectileEmissiveColor=FLinearColor(.2f,.8f,.1f,1.f);
-      Component->EnemyProjectileEmissiveStrength=7.f;
+      Defaults->EnemyProjectileEmissiveColor=FLinearColor(.2f,.8f,.1f,1.f);
+      Defaults->EnemyProjectileEmissiveStrength=7.f;
      }
     }
+   }
+   // Rebuild Blueprint post-construction defaults after programmatic CDO authoring.
+   if(Blueprint.IsValid() && (Selection==TEXT("marker-disabled") || Selection==TEXT("charge-disabled") || Selection==TEXT("projectile-authored")))
+   {
+    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint.Get());
+    FKismetEditorUtilities::CompileBlueprint(Blueprint.Get());
    }
    if (!InitializedHandle.IsValid())
    { InitializedHandle=FWorldDelegates::OnWorldInitializedActors.AddStatic(&BeforeBeginPlay); }
@@ -95,7 +115,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSMAGFFrontMarkerAuthoringTest,"SMAGF.Enemy.Fro
  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FSMAGFFrontMarkerAuthoringTest::RunTest(const FString& Parameters)
 {
- const auto* Property=FindFProperty<FBoolProperty>(USMAGFEnemyShowcaseComponent::StaticClass(),TEXT("bFrontMarkerEnabled"));
+ const auto* Property=FindFProperty<FBoolProperty>(ASMAGFTarget::StaticClass(),TEXT("bFrontMarkerEnabled"));
  TestNotNull(TEXT("Authored bool is reflected"),Property);
  if (!Property) { return false; }
  TestTrue(TEXT("Editable defaults"),Property->HasAnyPropertyFlags(CPF_Edit));
@@ -106,7 +126,7 @@ bool FSMAGFFrontMarkerAuthoringTest::RunTest(const FString& Parameters)
  const auto* Component=GetDefault<ASMAGFTarget>()->FindComponentByClass<USMAGFEnemyShowcaseComponent>();
  TestNotNull(TEXT("Native target owns inherited component"),Component);
  if (!Component) { return false; }
- TestTrue(TEXT("Native gate remains true"),Component->bFrontMarkerEnabled);
+ TestTrue(TEXT("Native gate remains true"),GetDefault<ASMAGFTarget>()->bFrontMarkerEnabled);
  TestTrue(TEXT("Inherited component is editable"),Component->IsEditableWhenInherited());
  AddInfo(TEXT("SMAGF_MARKER_AUTHORING assertions=9"));
  return true;

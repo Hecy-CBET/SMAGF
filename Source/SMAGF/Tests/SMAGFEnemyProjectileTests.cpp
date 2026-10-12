@@ -22,7 +22,7 @@ bool FSMAGFEnemyProjectileAuthoringTest::RunTest(const FString&)
  auto Check=[&](const TCHAR* Name,bool Pass) { ++Count;TestTrue(Name,Pass); };
  for(const FName Name : {FName(TEXT("EnemyProjectileEmissiveColor")),FName(TEXT("EnemyProjectileEmissiveStrength"))})
  {
-  const FProperty* Property=FindFProperty<FProperty>(USMAGFEnemyShowcaseComponent::StaticClass(),Name);
+  const FProperty* Property=FindFProperty<FProperty>(ASMAGFTarget::StaticClass(),Name);
   Check(TEXT("Property reflected"),Property!=nullptr);
   if(!Property) { continue; }
   Check(TEXT("Defaults editable"),Property->HasAllPropertyFlags(CPF_Edit|CPF_DisableEditOnInstance));
@@ -34,8 +34,8 @@ bool FSMAGFEnemyProjectileAuthoringTest::RunTest(const FString&)
  Check(TEXT("Native component exists"),Component!=nullptr);
  if(Component)
  {
-  Check(TEXT("Native cyan"),Component->EnemyProjectileEmissiveColor==FLinearColor(0.f,.7f,1.f,1.f));
-  Check(TEXT("Native strength four"),Component->EnemyProjectileEmissiveStrength==4.f);
+  Check(TEXT("Native cyan"),GetDefault<ASMAGFTarget>()->EnemyProjectileEmissiveColor==FLinearColor(0.f,.7f,1.f,1.f));
+  Check(TEXT("Native strength four"),GetDefault<ASMAGFTarget>()->EnemyProjectileEmissiveStrength==4.f);
   Check(TEXT("Inherited component editable"),Component->IsEditableWhenInherited());
  }
  AddInfo(FString::Printf(TEXT("SMAGF_PROJECTILE_AUTHORING assertions=%d"),Count));

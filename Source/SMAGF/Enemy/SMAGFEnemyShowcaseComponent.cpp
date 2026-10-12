@@ -1,5 +1,7 @@
 #include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "AIController.h"
+#include "Targets/SMAGFTarget.h"
+#include "Misc/ScopeExit.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -25,11 +27,18 @@ void USMAGFEnemyShowcaseComponent::BeginPlay()
  Super::BeginPlay();BaseRotation=GetOwner()->GetActorQuat();
  if(auto* Root=Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())) { FrontOffset=Root->Bounds.BoxExtent.X+8.f; }
  Marker=NewObject<UStaticMeshComponent>(GetOwner(),TEXT("EnemyFrontMarker"));GetOwner()->AddInstanceComponent(Marker);
- Marker->SetVisibility(bFrontMarkerEnabled);
+ Marker->SetVisibility(false);
  Marker->SetupAttachment(GetOwner()->GetRootComponent());
  Marker->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
  Marker->SetCollisionEnabled(ECollisionEnabled::NoCollision);Marker->SetCanEverAffectNavigation(false);Marker->SetReceivesDecals(false);
  Marker->SetRelativeLocation(FVector(FrontOffset,0,12));Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f));Marker->RegisterComponent();
+ if(const auto* Target=Cast<ASMAGFTarget>(GetOwner()); Target && Target->EnemyTelegraphPresentationMode==ESMAGFEnemyTelegraphPresentationMode::ChargeOnly)
+ {
+  Marker->SetStaticMesh(Target->EnemyTelegraphMesh);
+  Marker->SetRelativeLocation(Target->EnemyTelegraphLocalOffset.ContainsNaN()?FVector::ZeroVector:Target->EnemyTelegraphLocalOffset);
+  Marker->SetRelativeRotation(Target->EnemyTelegraphRelativeRotation.ContainsNaN()?FRotator::ZeroRotator:Target->EnemyTelegraphRelativeRotation);
+  Marker->SetRelativeScale3D(FVector::ZeroVector);
+ }
  MarkerMaterial=UMaterialInstanceDynamic::Create(LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Variant_TwinStick/M_Glow.M_Glow")),this);
  Marker->SetMaterial(0,MarkerMaterial);
  Showcase=GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
@@ -48,7 +57,7 @@ void USMAGFEnemyShowcaseComponent::ApplyDebugBehaviorMode(ESMAGFEnemyDebugMode N
  // Reset decisions and abort the current path without moving the actor or
  // resampling its speed. Already-fired projectiles have independent ownership.
  ResetCycle();bMovementWasEnabled=MovementEnabled();SettingsChanged();
- if(Marker) { Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)); }
+ UpdateTelegraphPresentation(0.f);
 }
 void USMAGFEnemyShowcaseComponent::StopNavigation(bool bImmediate)
 {
@@ -220,15 +229,16 @@ void USMAGFEnemyShowcaseComponent::SettingsChanged()
 {
  ApplyMovementTuning();
  const bool Active=Enabled() && DebugMode!=ESMAGFEnemyDebugMode::Passive,Moving=MovementEnabled();SetComponentTickEnabled(Active);
- if(Marker) { Marker->SetVisibility(bFrontMarkerEnabled && OffenseEnabled()); }
+
  if(Active && !Moving && bMovementWasEnabled) { BeginBraking();State=ESMAGFEnemyState::Idle; }
  else if(!Active || Moving!=bMovementWasEnabled) { ResetCycle(); }
  if(!Enabled()) { GetOwner()->SetActorRotation(BaseRotation); }
  bMovementWasEnabled=Moving;
+ UpdateTelegraphPresentation(0.f);
 }
 void USMAGFEnemyShowcaseComponent::StopForDeath()
 {
- bDead=true;ResetCycle();SetComponentTickEnabled(false);if(Marker) { Marker->SetVisibility(false); }
+ bDead=true;ResetCycle();SetComponentTickEnabled(false);UpdateTelegraphPresentation(0.f);if(Marker) { Marker->SetRelativeScale3D(FVector::ZeroVector); }
  if(auto* Pawn=Cast<APawn>(GetOwner()))
  { if(auto* Controller=Cast<AAIController>(Pawn->GetController())) { Controller->UnPossess();Controller->Destroy(); } }
 }
@@ -236,6 +246,8 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
 {
  Super::TickComponent(Dt,Type,Function);
  if(!Enabled() || DebugMode==ESMAGFEnemyDebugMode::Passive || GetWorld()->IsPaused()) { return; }
+ bool bShotThisTick=false;
+ ON_SCOPE_EXIT { UpdateTelegraphPresentation(Dt,bShotThisTick); };
  APawn* Player=UGameplayStatics::GetPlayerPawn(this,0);const auto S=Showcase->GetSettings();const auto T=S.SmokeAndMirrors;
  const FVector Delta=Player?Player->GetActorLocation()-GetOwner()->GetActorLocation():FVector::ZeroVector;
  const float Distance=Delta.Size2D();
@@ -277,16 +289,66 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    FActorSpawnParameters Params;Params.Owner=GetOwner();Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
    if(auto* Projectile=GetWorld()->SpawnActor<ASMAGFEnemyProjectile>(Origin,FRotator::ZeroRotator,Params))
    {
-    Projectile->SetPresentation(EnemyProjectileEmissiveColor,EnemyProjectileEmissiveStrength);
+    if(const auto* Target=Cast<ASMAGFTarget>(GetOwner()))
+    { Projectile->SetPresentation(Target->EnemyProjectileEmissiveColor,Target->EnemyProjectileEmissiveStrength); }
     Projectile->InitializeFlight(Player->GetActorLocation()-Origin,T.EnemyProjectileSpeed);++ShotsFired;
    }
+   bShotThisTick=true;
    State=ESMAGFEnemyState::Cooldown;Elapsed=0.f;
   }
   else if(OffenseEnabled() && State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { BeginTelegraph(); }
  }
- const float Pulse=State==ESMAGFEnemyState::Telegraph?FMath::Clamp(Elapsed/FMath::Max(T.EnemyTelegraphDuration,.001f),0.f,1.f):0.f;
- Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)*(1.f+.3f*Pulse*S.Master.MasterIntensity));
- if(MarkerMaterial) { MarkerMaterial->SetVectorParameterValue(TEXT("Emissive Color"),FLinearColor(0.f,.5f,1.f));MarkerMaterial->SetScalarParameterValue(TEXT("Emissive Strength"),(1.f+5.f*Pulse)*S.Master.MasterIntensity); }
+}
+void USMAGFEnemyShowcaseComponent::UpdateTelegraphPresentation(float Dt,bool bShotThisTick)
+{
+ if(!Marker) { return; }
+ const auto* Target=Cast<ASMAGFTarget>(GetOwner());
+ const bool bVisible=Target && Target->bFrontMarkerEnabled && OffenseEnabled();
+ const bool bCharge=Target && Target->EnemyTelegraphPresentationMode==ESMAGFEnemyTelegraphPresentationMode::ChargeOnly;
+ const float Intensity=Showcase.IsValid()?Showcase->GetSettings().Master.MasterIntensity:1.f;
+ const float Duration=Showcase.IsValid()?Showcase->GetSettings().SmokeAndMirrors.EnemyTelegraphDuration:.7f;
+ const float Pulse=State==ESMAGFEnemyState::Telegraph?FMath::Clamp(Elapsed/FMath::Max(Duration,.001f),0.f,1.f):0.f;
+ if(!bCharge)
+ {
+  Marker->SetVisibility(bVisible);
+  Marker->SetRelativeScale3D(FVector(.08f,.45f,.3f)*(1.f+.3f*Pulse*Intensity));
+  if(MarkerMaterial)
+  {
+   MarkerMaterial->SetVectorParameterValue(TEXT("Emissive Color"),FLinearColor(0.f,.5f,1.f));
+   MarkerMaterial->SetScalarParameterValue(TEXT("Emissive Strength"),(1.f+5.f*Pulse)*Intensity);
+  }
+  return;
+ }
+ if(!bVisible)
+ {
+  TelegraphAlpha=RetractStartAlpha=RetractElapsed=0.f;bWasPresentingTelegraph=false;
+ }
+ else if(bShotThisTick)
+ {
+  // Preserve the exact full-charge sample on the shot frame, without delaying gameplay.
+  TelegraphAlpha=RetractStartAlpha=1.f;RetractElapsed=0.f;bWasPresentingTelegraph=false;
+ }
+ else if(State==ESMAGFEnemyState::Telegraph)
+ {
+  TelegraphAlpha=Pulse;RetractStartAlpha=RetractElapsed=0.f;bWasPresentingTelegraph=true;
+ }
+ else
+ {
+  if(bWasPresentingTelegraph) { RetractStartAlpha=TelegraphAlpha;RetractElapsed=0.f;bWasPresentingTelegraph=false; }
+  const float Retract=FMath::IsFinite(Target->EnemyTelegraphRetractDuration)?FMath::Clamp(Target->EnemyTelegraphRetractDuration,0.f,10.f):0.f;
+  RetractElapsed+=FMath::Max(0.f,Dt);
+  TelegraphAlpha=Retract>UE_SMALL_NUMBER?RetractStartAlpha*(1.f-FMath::Clamp(RetractElapsed/Retract,0.f,1.f)):0.f;
+ }
+ const FVector Scale=Target->EnemyTelegraphTargetScale.ContainsNaN()?FVector::ZeroVector:Target->EnemyTelegraphTargetScale;
+ Marker->SetRelativeScale3D(Scale*TelegraphAlpha);
+ Marker->SetVisibility(bVisible && TelegraphAlpha>0.f);
+ if(MarkerMaterial)
+ {
+  const auto Color=Target->EnemyProjectileEmissiveColor;
+  MarkerMaterial->SetVectorParameterValue(TEXT("Emissive Color"),(FMath::IsFinite(Color.R) && FMath::IsFinite(Color.G) && FMath::IsFinite(Color.B) && FMath::IsFinite(Color.A))?Color:FLinearColor(0.f,.7f,1.f,1.f));
+  const float Strength=FMath::IsFinite(Target->EnemyProjectileEmissiveStrength)?FMath::Clamp(Target->EnemyProjectileEmissiveStrength,0.f,100.f):4.f;
+  MarkerMaterial->SetScalarParameterValue(TEXT("Emissive Strength"),Strength*(1.f+5.f*TelegraphAlpha)*Intensity);
+ }
 }
 void USMAGFEnemyShowcaseComponent::EndPlay(const EEndPlayReason::Type Reason)
 {

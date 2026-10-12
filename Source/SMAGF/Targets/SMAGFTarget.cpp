@@ -47,6 +47,7 @@ ASMAGFTarget::ASMAGFTarget()
 	Visual->SetRelativeScale3D(GetCollisionExtent() / 50.f);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Mesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	Visual->SetStaticMesh(Mesh.Object);
+	EnemyTelegraphMesh = Mesh.Object;
 	Health = CreateDefaultSubobject<USMAGFHealthComponent>(TEXT("Health"));
 	Reaction = CreateDefaultSubobject<USMAGFReactionComponent>(TEXT("Reaction"));
 	Health->OnDeath.AddDynamic(this, &ASMAGFTarget::OnDied);
