@@ -1,6 +1,7 @@
 #include "SMAGFCharacter.h"
 #include "SMAGFPlayerController.h"
 #include "SMAGFGameMode.h"
+#include "Horror/SMAGFFlickeringComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "Presentation/SMAGFEventPresentationComponent.h"
@@ -95,6 +96,7 @@ void ASMAGFCharacter::InitializeHorrorFlashlight()
 	if (!Mode) { return; }
 	bFlashlightInitializationAttempted = true;
 	if (!Mode->IsHorrorMode()) { return; }
+	bFlashlightEnabled = false;
 	const TSubclassOf<AActor> FlashlightClass = Mode->GetHorrorFlashlightClass();
 	if (!FlashlightClass) { return; } // An unconfigured Horror class is a safe no-op.
 	FActorSpawnParameters Params;
@@ -105,7 +107,7 @@ void ASMAGFCharacter::InitializeHorrorFlashlight()
 	HorrorFlashlight = GetWorld()->SpawnActor<AActor>(FlashlightClass, GetPawnViewLocation(), FRotator::ZeroRotator, Params);
 	if (IsValid(HorrorFlashlight))
 	{
-		HorrorFlashlight->SetActorHiddenInGame(!bFlashlightEnabled);
+		SetFlashlightEnabled(false);
 		if (!HorrorFlashlight->GetRootComponent() || !HorrorFlashlight->AttachToComponent(
 			FlashlightAnchor, FAttachmentTransformRules::SnapToTargetIncludingScale))
 		{
@@ -138,6 +140,11 @@ void ASMAGFCharacter::SetFlashlightEnabled(bool bEnabled)
 	if (!IsValid(HorrorFlashlight)) { return; }
 	bFlashlightEnabled = bEnabled;
 	HorrorFlashlight->SetActorHiddenInGame(!bEnabled);
+	if (!bEnabled)
+	{
+		if (auto* Flicker = HorrorFlashlight->FindComponentByClass<USMAGFFlickeringComponent>())
+		{ Flicker->StopFlickering(); }
+	}
 }
 
 void ASMAGFCharacter::ToggleFlashlight()

@@ -1,4 +1,5 @@
 #include "Feedback/SMAGFReactionComponent.h"
+#include "SMAGFGameMode.h"
 #include "Feedback/SMAGFDeathVisual.h"
 #include "Showcase/SMAGFShowcaseSubsystem.h"
 #include "Components/SceneComponent.h"
@@ -330,6 +331,8 @@ void USMAGFReactionComponent::ReceiveShowcaseHostileHit(const FVector& Direction
 {
  if(!CharacterMovement.IsValid() || !Showcase.IsValid() || !Showcase->IsFeatureEffectivelyEnabled(ESMAGFShowcaseFeature::EnemyThreat) || Direction.ContainsNaN()) { return; }
  ++HostileHitCount;
+ if (auto* Mode=GetWorld()->GetAuthGameMode<ASMAGFGameMode>())
+ { Mode->TriggerHorrorFlashlightFlicker(TEXT("HostileHit")); }
  const FVector Push=Direction.GetSafeNormal2D();
  // Refresh a bounded impulse rather than stacking velocities or disabling input.
  HostileVelocity=Push*800.f;HostileRemaining=.25f;

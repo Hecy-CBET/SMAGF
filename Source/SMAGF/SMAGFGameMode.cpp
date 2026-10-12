@@ -6,6 +6,7 @@
 #include "Enemy/SMAGFEnemyShowcaseComponent.h"
 #include "SMAGF.h"
 #include "SMAGFCharacter.h"
+#include "Horror/SMAGFFlickeringComponent.h"
 #include "SMAGFPlayerController.h"
 #include "Targets/SMAGFTarget.h"
 #include "Engine/World.h"
@@ -222,4 +223,20 @@ void ASMAGFGameMode::PlayHorrorMonsterDeathSoundAtLocation(const FVector& DeathL
   Volume, *DeathLocation.ToString(), *HorrorMonsterDeathSound->GetPathName());
  // World-owned one-shot: never attached to the enemy or its presentation corpse.
  UGameplayStatics::PlaySoundAtLocation(this, HorrorMonsterDeathSound, DeathLocation, Volume);
+}
+
+void ASMAGFGameMode::TriggerHorrorFlashlightFlicker(FName Event)
+{
+	if (!IsHorrorMode()) { return; }
+	const auto* Player = Cast<ASMAGFCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	if (!Player || !Player->IsFlashlightEnabled()) { return; }
+	AActor* Flashlight = Player->GetHorrorFlashlight();
+	if (!IsValid(Flashlight) || Flashlight->IsHidden()) { return; }
+	if (auto* Flicker = Flashlight->FindComponentByClass<USMAGFFlickeringComponent>(); Flicker && Flicker->IsActive())
+	{
+		Flicker->TriggerFlickerBurst();
+#if !UE_BUILD_SHIPPING
+		UE_LOG(LogSMAGF, Verbose, TEXT("SMAGF_HORROR_FLASHLIGHT_FLICKER Event=%s"), *Event.ToString());
+#endif
+	}
 }

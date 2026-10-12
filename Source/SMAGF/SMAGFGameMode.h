@@ -52,6 +52,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SMAGF|Horror|Audio", meta=(ClampMin="0", ClampMax="4"))
 	float HorrorMonsterDeathVolumeMultiplier = 1.f;
 	void PlayHorrorMonsterDeathSoundAtLocation(const FVector& DeathLocation);
+	/** Presentation-only; manual flashlight state always wins. */
+	void TriggerHorrorFlashlightFlicker(FName Event);
 
 	UFUNCTION(BlueprintPure, Category="SMAGF|Debug")
 	ESMAGFEnemyDebugMode GetEnemyDebugMode() const { return EnemyDebugMode; }

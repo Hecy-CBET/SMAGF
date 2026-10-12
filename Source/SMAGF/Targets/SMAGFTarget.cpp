@@ -105,7 +105,8 @@ void ASMAGFTarget::OnDied(USMAGFHealthComponent* DeadHealth)
 {
 	// Health commits its one-shot Alive -> Dead transition before this delegate.
 	if (auto* Mode = GetWorld()->GetAuthGameMode<ASMAGFGameMode>())
-	{ Mode->PlayHorrorMonsterDeathSoundAtLocation(GetActorLocation()); }
+	{ Mode->PlayHorrorMonsterDeathSoundAtLocation(GetActorLocation());
+	  Mode->TriggerHorrorFlashlightFlicker(TEXT("EnemyDeath")); }
 	if (auto* Director=ASMAGFShowcaseDirector::Get(GetWorld())) { Director->UnregisterTarget(this); }
 	if (auto* Enemy=FindComponentByClass<USMAGFEnemyShowcaseComponent>()) { Enemy->StopForDeath(); }
 	SetCanBeDamaged(false);
