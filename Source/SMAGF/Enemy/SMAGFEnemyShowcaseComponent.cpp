@@ -276,7 +276,10 @@ void USMAGFEnemyShowcaseComponent::TickComponent(float Dt,ELevelTick Type,FActor
    const FVector Origin=GetOwner()->GetActorLocation()+GetOwner()->GetActorForwardVector()*FrontOffset;
    FActorSpawnParameters Params;Params.Owner=GetOwner();Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
    if(auto* Projectile=GetWorld()->SpawnActor<ASMAGFEnemyProjectile>(Origin,FRotator::ZeroRotator,Params))
-   { Projectile->InitializeFlight(Player->GetActorLocation()-Origin,T.EnemyProjectileSpeed);++ShotsFired; }
+   {
+    Projectile->SetPresentation(EnemyProjectileEmissiveColor,EnemyProjectileEmissiveStrength);
+    Projectile->InitializeFlight(Player->GetActorLocation()-Origin,T.EnemyProjectileSpeed);++ShotsFired;
+   }
    State=ESMAGFEnemyState::Cooldown;Elapsed=0.f;
   }
   else if(OffenseEnabled() && State==ESMAGFEnemyState::Cooldown && Elapsed>=T.EnemyAttackCooldown) { BeginTelegraph(); }

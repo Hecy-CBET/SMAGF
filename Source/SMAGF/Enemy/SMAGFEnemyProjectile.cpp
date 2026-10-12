@@ -31,11 +31,24 @@ void ASMAGFEnemyProjectile::InitializeFlight(const FVector& Direction,float Spee
  FlightDirection=Direction.GetSafeNormal2D();
  Movement->InitialSpeed=Speed;Movement->MaxSpeed=Speed;Movement->Velocity=Direction.GetSafeNormal2D()*Speed;
 }
+void ASMAGFEnemyProjectile::SetPresentation(const FLinearColor& EmissiveColor,float EmissiveStrength)
+{
+ PresentationEmissiveColor=FMath::IsFinite(EmissiveColor.R) && FMath::IsFinite(EmissiveColor.G)
+  && FMath::IsFinite(EmissiveColor.B) && FMath::IsFinite(EmissiveColor.A)
+  ?EmissiveColor:FLinearColor(0.f,.7f,1.f,1.f);
+ PresentationEmissiveStrength=FMath::IsFinite(EmissiveStrength)?FMath::Clamp(EmissiveStrength,0.f,100.f):4.f;
+ // Ordinary SpawnActor can finish BeginPlay before the caller supplies values.
+ if(Material)
+ {
+  Material->SetVectorParameterValue(TEXT("Emissive Color"),PresentationEmissiveColor);
+  Material->SetScalarParameterValue(TEXT("Emissive Strength"),PresentationEmissiveStrength);
+ }
+}
 void ASMAGFEnemyProjectile::BeginPlay()
 {
  Super::BeginPlay();Collision->IgnoreActorWhenMoving(GetOwner(),true);
  Material=UMaterialInstanceDynamic::Create(Glow,this);Visual->SetMaterial(0,Material);
- if(Material) { Material->SetVectorParameterValue(TEXT("Emissive Color"),FLinearColor(0.f,.7f,1.f));Material->SetScalarParameterValue(TEXT("Emissive Strength"),4.f); }
+ SetPresentation(PresentationEmissiveColor,PresentationEmissiveStrength);
  Showcase=GetWorld()->GetSubsystem<USMAGFShowcaseSubsystem>();
  if(Showcase.IsValid()) { Handle=Showcase->OnSettingsChangedNative.AddUObject(this,&ThisClass::SettingsChanged); }
  SettingsChanged();

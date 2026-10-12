@@ -24,7 +24,7 @@ struct FSMAGFCanonicalClassFixture
   if (!World || !World->IsGameWorld()) { return; }
   auto* Mode=World->GetAuthGameMode<ASMAGFGameMode>();
   if (!Mode || Mode->HasActorBegunPlay()) { return; }
-  if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled")))
+  if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored")))
   {
    if (!Blueprint.IsValid() || !Blueprint->GeneratedClass) { return; }
    Mode->ShowcaseEnemyClass=Blueprint->GeneratedClass;
@@ -36,10 +36,10 @@ struct FSMAGFCanonicalClassFixture
  static void Run(const TArray<FString>& Args,UWorld* World)
  {
   if (Args.Num()!=1) { return; }
-  if (Args[0]==TEXT("subclass") || Args[0]==TEXT("marker-disabled") || Args[0]==TEXT("null") || Args[0]==TEXT("native"))
+  if (Args[0]==TEXT("subclass") || Args[0]==TEXT("marker-disabled") || Args[0]==TEXT("projectile-authored") || Args[0]==TEXT("null") || Args[0]==TEXT("native"))
   {
    Selection=Args[0];
-   if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled")) && !Blueprint.IsValid())
+   if ((Selection==TEXT("subclass") || Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored")) && !Blueprint.IsValid())
    {
     Blueprint.Reset(FKismetEditorUtilities::CreateBlueprint(ASMAGFTarget::StaticClass(),
      GetTransientPackage(),MakeUniqueObjectName(GetTransientPackage(),UBlueprint::StaticClass(),TEXT("SMAGFCanonicalTest")),BPTYPE_Normal));
@@ -48,12 +48,17 @@ struct FSMAGFCanonicalClassFixture
     FKismetEditorUtilities::CompileBlueprint(Blueprint.Get());
     if (!Blueprint->GeneratedClass) { return; }
     // Author only the unsaved fixture's inherited component default.
-    if (Selection==TEXT("marker-disabled"))
+    if (Selection==TEXT("marker-disabled") || Selection==TEXT("projectile-authored"))
     {
      auto* Defaults=Cast<ASMAGFTarget>(Blueprint->GeneratedClass->GetDefaultObject());
      auto* Component=Defaults?Defaults->FindComponentByClass<USMAGFEnemyShowcaseComponent>():nullptr;
      if (!Component) { return; }
-     Component->bFrontMarkerEnabled=false;
+     if (Selection==TEXT("marker-disabled")) { Component->bFrontMarkerEnabled=false; }
+     else
+     {
+      Component->EnemyProjectileEmissiveColor=FLinearColor(.2f,.8f,.1f,1.f);
+      Component->EnemyProjectileEmissiveStrength=7.f;
+     }
     }
    }
    if (!InitializedHandle.IsValid())
@@ -83,7 +88,7 @@ FString FSMAGFCanonicalClassFixture::Selection;
 TStrongObjectPtr<UBlueprint> FSMAGFCanonicalClassFixture::Blueprint;
 FDelegateHandle FSMAGFCanonicalClassFixture::InitializedHandle;
 static FAutoConsoleCommandWithWorldAndArgs GCanonicalClassFixture(
- TEXT("SMAGF.TestCanonicalClass"),TEXT("Editor-only fixture: arm native/subclass/null/marker-disabled before PIE; status inspects slots; restore-key exercises Ctrl+T handler."),
+ TEXT("SMAGF.TestCanonicalClass"),TEXT("Editor-only fixture: arm native/subclass/null/marker-disabled/projectile-authored before PIE; status inspects slots; restore-key exercises Ctrl+T handler."),
  FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FSMAGFCanonicalClassFixture::Run));
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSMAGFFrontMarkerAuthoringTest,"SMAGF.Enemy.FrontMarkerAuthoring",

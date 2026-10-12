@@ -10,6 +10,7 @@ public:
  ASMAGFEnemyProjectile();
  virtual void BeginPlay() override;
  virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+ void SetPresentation(const FLinearColor& EmissiveColor,float EmissiveStrength);
  void InitializeFlight(const FVector& Direction,float Speed);
 private:
  void SettingsChanged();
@@ -21,6 +22,8 @@ private:
  UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> Material;
  TWeakObjectPtr<class USMAGFShowcaseSubsystem> Showcase;
  FDelegateHandle Handle;
+ FLinearColor PresentationEmissiveColor=FLinearColor(0.f,.7f,1.f,1.f);
+ float PresentationEmissiveStrength=4.f;
  FVector FlightDirection=FVector::ForwardVector;
  bool bConsumed=false;
 };
