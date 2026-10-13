@@ -318,8 +318,6 @@ void ASMAGFPlayerController::UpdateAim(float DeltaTime)
 
 void ASMAGFPlayerController::ToggleShowcasePanel()
 {
-	const auto* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ASMAGFGameMode>() : nullptr;
-	if (GameMode && GameMode->IsHorrorMode()) { RemoveShowcasePanel(true); return; }
 	if (IsShowcasePanelOpen()) { CloseShowcasePanel(); return; }
 	if (!IsLocalController() || !GetWorld() || !FSlateApplication::IsInitialized()) { return; }
 	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
